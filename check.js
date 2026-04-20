@@ -512,8 +512,7 @@ function renderSportWeekBars(workouts) {
       <div class="week-col ${todayClass}">
         <div class="week-val">${d.burned > 0 ? d.burned : ''}</div>
         <div class="week-bar-wrap" style="position:relative">
-          <div style="position:absolute;left:0;right:0;height:2px;background:#f59e0b;opacity:0.8;z-index:2;top:${(100 - Math.round(target/maxCal*100))}%"></div>
-          <div class="week-bar" style="height:${h}%;background:${color};position:relative;z-index:1"></div>
+          <div class="week-bar" style="height:${h}%;background:${color}"></div>
         </div>
         <div class="week-day">${dayName}</div>
       </div>
@@ -522,8 +521,8 @@ function renderSportWeekBars(workouts) {
 }
 
 function renderSportWeekSummary(workouts) {
-  const weekStart = weekStartBounds();
-  const weekEnd = weekStart + 7 * 86400;
+  const weekStart = Date.now()/1000 - 7 * 86400;
+  const weekEnd = Date.now()/1000 + 86400;
   const weekW = workouts.filter(w => w.timestamp >= weekStart && w.timestamp < weekEnd);
 
   const el = document.getElementById('sportWeekSummary');
