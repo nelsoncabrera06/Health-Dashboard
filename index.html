@@ -943,7 +943,8 @@ function renderWeek(meals, goals, windowDays, profile) {
     days.push({ cal: Math.round(cal), dateObj: p, iso: p.getFullYear()+'-'+mm+'-'+dd, isToday: i===0 });
   }
 
-  const maxCal = Math.max(target * 1.15, ...days.map(d => d.cal), 100);
+  const tdeeForScale = (profile && profile.tdee) || 2910;
+  const maxCal = Math.max(target * 1.15, tdeeForScale * 1.05, ...days.map(d => d.cal), 100);
   const n = days.length;
 
   const W = 600, H = 200;
