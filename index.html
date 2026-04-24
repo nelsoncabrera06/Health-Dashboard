@@ -378,6 +378,7 @@
     .week-summary-row:last-child { border-bottom: none; }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 </head>
 <body>
 
@@ -473,7 +474,7 @@
       </div>
     </div>
     <div class="goal-line"><div class="goal-dot"></div> Límite: <span id="calTargetLabel">2400</span> kcal</div>
-    <div style="position:relative;width:100%;height:220px"><canvas id="weekBars"></canvas></div>
+    <div style="position:relative;width:100%;height:340px"><canvas id="weekBars"></canvas></div>
   </div>
 
   <!-- Weight progress chart -->
@@ -486,7 +487,7 @@
       <button class="weight-pill" data-days="180">6M</button>
       <button class="weight-pill" data-days="365">1A</button>
     </div>
-    <div style="position:relative;width:100%;height:220px"><canvas id="weightChartWrap"></canvas></div>
+    <div style="position:relative;width:100%;height:340px"><canvas id="weightChartWrap"></canvas></div>
     <div class="weight-note" id="weightNote"></div>
   </div>
 
@@ -822,6 +823,11 @@ function _renderWeightSVG(weightLog, goalWeight, windowDays) {
             label: ctx => ctx.dataset.label === 'Meta' ? ' Meta: ' + ctx.parsed.y + ' kg' : ' ' + ctx.parsed.y + ' kg'
           },
           filter: item => item.parsed.y !== null
+        },
+        datalabels: {
+          anchor: 'end', align: 'top',
+          color: '#93c5fd', font: { size: 10, weight: '600' },
+          formatter: (v, ctx) => ctx.datasetIndex === 0 && v !== null ? v + ' kg' : '',
         }
       },
       scales: {
@@ -840,6 +846,7 @@ function _renderWeightSVG(weightLog, goalWeight, windowDays) {
   });
 }
 
+Chart.register(ChartDataLabels);
 let _calMealsGlobal = [], _calGoalsGlobal = {}, _calWindowDays = 7;
 let _calChartInstance = null;
 let _weightChartInstance = null;
@@ -909,6 +916,11 @@ function renderWeek(meals, goals, windowDays, profile) {
           callbacks: {
             label: ctx => ` ${ctx.parsed.y} kcal`
           }
+        },
+        datalabels: {
+          anchor: 'end', align: 'start',
+          color: '#fff', font: { size: 10, weight: '600' },
+          formatter: v => v > 0 ? v.toLocaleString('es-AR') : '',
         }
       },
       scales: {
