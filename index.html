@@ -445,8 +445,8 @@
   <!-- Meals + Workouts -->
   <div class="grid-bottom">
     <div class="card">
-      <div class="section-title">🍽️ Comidas de hoy</div>
-      <div id="mealList"><div class="empty-state">Sin comidas registradas hoy</div></div>
+      <div class="section-title">🍽️ Últimas comidas registradas</div>
+      <div id="mealList"><div class="empty-state">Sin comidas registradas</div></div>
     </div>
     <div class="card">
       <div class="section-title">⚡ Ejercicio de hoy</div>
@@ -676,23 +676,23 @@ function renderMacros(meals, goals) {
 }
 
 function renderMeals(meals) {
-  const { start, end } = todayBounds();
-  const todayMeals = meals
-    .filter(m => m.timestamp >= start && m.timestamp < end)
-    .sort((a,b) => a.timestamp - b.timestamp);
-
   const el = document.getElementById('mealList');
-  if (!todayMeals.length) {
-    el.innerHTML = '<div class="empty-state">Sin comidas registradas hoy</div>';
+  if (!meals.length) {
+    el.innerHTML = '<div class="empty-state">Sin comidas registradas</div>';
     return;
   }
-  el.innerHTML = todayMeals.map(m => `
+  const lastMeals = [...meals].sort((a,b) => b.timestamp - a.timestamp).slice(0, 8);
+  el.innerHTML = lastMeals.map(m => {
+    const d = new Date(m.timestamp * 1000);
+    const dateStr = d.toLocaleDateString('es-FI', { weekday: 'short', month: 'short', day: 'numeric' });
+    const timeStr = d.toLocaleTimeString('es-FI', { hour: '2-digit', minute: '2-digit' });
+    return `
     <div class="meal-row">
-      <div class="meal-time">${fmtTime(m.timestamp)}</div>
+      <div class="meal-time" style="min-width:90px">${dateStr} ${timeStr}</div>
       <div class="meal-name">${m.meal}</div>
       <div class="meal-cal">${Math.round(m.calories)} kcal</div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 }
 
 function renderWorkouts(workouts) {
@@ -760,7 +760,7 @@ function _renderWeightSVG(weightLog, goalWeight, windowDays) {
     const d = new Date(today); d.setDate(d.getDate() - i);
     const iso = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
     const entry = weightLog.find(w => w.date === iso);
-    labels.push(d.toLocaleDateString('es-AR', {month:'short', day:'numeric'}));
+    labels.push([DAY_NAMES[d.getDay()], d.toLocaleDateString('es-AR', {month:'short', day:'numeric'})]);
     dataPoints.push(entry ? entry.weight_kg : null);
   }
 
@@ -884,7 +884,7 @@ function renderWeek(meals, goals, windowDays, profile) {
       return md.getTime() === d.getTime();
     });
     const cal = dayMeals.reduce((s, m) => s + (m.calories || 0), 0);
-    const label = d.toLocaleDateString('es-AR', {month:'short', day:'numeric'});
+    const label = [DAY_NAMES[d.getDay()], d.toLocaleDateString('es-AR', {month:'short', day:'numeric'})];
     labels.push(label);
     values.push(cal || 0);
     colors.push(cal > target ? '#ef4444' : '#3b82f6');
