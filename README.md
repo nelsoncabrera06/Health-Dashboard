@@ -41,13 +41,17 @@ A personal health tracking dashboard built with Python and vanilla JavaScript. T
 ```bash
 git clone https://github.com/yourusername/health-dashboard.git
 cd health-dashboard
+cp .env.example .env   # set PORT here (default 3000)
 
-# Start the server
-python3 server.py 3000
+# Start the server (reads .env; argv > PORT env > .env > 3000)
+python3 server.py
+# or explicit port: python3 server.py 3001 / PORT=3001 python3 server.py
 
 # Open in browser
 open http://localhost:3000
 ```
+
+> `data.json` is gitignored. For local testing create a minimal one or copy your own. Without it `/health-data` returns 500.
 
 ## Project Structure
 

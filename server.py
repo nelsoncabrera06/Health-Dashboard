@@ -194,8 +194,29 @@ class HealthHandler(BaseHTTPRequestHandler):
             self.wfile.write(b'{"error": "Not found"}')
 
 
+def load_dotenv(path=None):
+    """Minimal .env loader (stdlib only). Does not override real env vars."""
+    env_path = path or os.path.join(BASE_DIR, ".env")
+    if not os.path.isfile(env_path):
+        return
+    with open(env_path) as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, val = line.split("=", 1)
+            key, val = key.strip(), val.strip().strip("'\"")
+            if key and key not in os.environ:
+                os.environ[key] = val
+
+
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 3000))
+    load_dotenv()
+    # Priority: argv > PORT env (.env or system) > 3000
+    if len(sys.argv) > 1:
+        port = int(sys.argv[1])
+    else:
+        port = int(os.environ.get("PORT", 3000))
     server = HTTPServer(("0.0.0.0", port), HealthHandler)
     print(f"🏋️  Health server running on http://0.0.0.0:{port}", flush=True)
     try:

@@ -4,6 +4,9 @@ progress/
 __pycache__/
 *.pyc
 
+# Variables de entorno
+.env
+
 
 # AI
 AGENTS.md
