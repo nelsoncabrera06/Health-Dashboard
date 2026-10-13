@@ -3,3 +3,7 @@ progress/
 *.log
 __pycache__/
 *.pyc
+
+
+# AI
+AGENTS.md
