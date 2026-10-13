@@ -1,0 +1,17 @@
+{
+  "name": "health-dashboard-web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Health Dashboard web general (Next.js + Supabase).",
+  "scripts": {
+    "dev": "next dev --port 3100",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.107.0",
+    "next": "^16.2.7",
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
+  }
+}

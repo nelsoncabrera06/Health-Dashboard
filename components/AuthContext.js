@@ -1,0 +1,77 @@
+"use client";
+
+import { createContext, useContext, useEffect, useState } from "react";
+import { supabase } from "../lib/supabaseClient";
+import {
+  getCurrentUser,
+  login,
+  register,
+  setUserPrefs,
+  signInWithGoogle as authSignInWithGoogle,
+} from "../lib/auth";
+
+const AuthContext = createContext(null);
+
+export function AuthProvider({ children }) {
+  const [user, setUser] = useState(null);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    getCurrentUser().then((u) => {
+      if (!active) return;
+      setUser(u);
+      setReady(true);
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange(() => {
+      getCurrentUser().then((u) => {
+        if (active) setUser(u);
+      });
+    });
+    return () => {
+      active = false;
+      sub.subscription.unsubscribe();
+    };
+  }, []);
+
+  const signIn = async (credentials, mode = "login") => {
+    const u =
+      mode === "register"
+        ? await register(credentials)
+        : await login(credentials);
+    setUser(u);
+    return u;
+  };
+
+  const signInWithGoogle = () => authSignInWithGoogle();
+
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+  };
+
+  const refresh = async () => {
+    const u = await getCurrentUser();
+    setUser(u);
+  };
+
+  const updatePrefs = async (patch) => {
+    if (!user) return;
+    const updated = await setUserPrefs(user.id, patch);
+    if (updated) setUser(updated);
+  };
+
+  return (
+    <AuthContext.Provider
+      value={{ user, ready, signIn, signInWithGoogle, signOut, refresh, updatePrefs }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+export function useAuth() {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth debe usarse dentro de <AuthProvider>");
+  return ctx;
+}
