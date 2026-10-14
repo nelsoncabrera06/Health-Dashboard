@@ -4,6 +4,10 @@ progress/
 __pycache__/
 *.pyc
 
+# macOS
+.DS_Store 
+.vscode/ 
+
 # Variables de entorno
 .env
 .env*.local

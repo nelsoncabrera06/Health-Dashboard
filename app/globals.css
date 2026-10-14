@@ -181,6 +181,56 @@ a { color: var(--blue); }
   background: transparent; color: var(--muted); font-size: 11px; cursor: pointer;
 }
 .pill.active { background: var(--yellow); border-color: var(--yellow); color: #000; font-weight: 600; }
+/* ── Calorías: header con pills + línea de límite (como el original) ── */
+.cal-head {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 12px; margin-bottom: 8px; flex-wrap: wrap;
+}
+.goal-line {
+  display: flex; justify-content: flex-end; align-items: center;
+  gap: 6px; margin-bottom: 4px; font-size: 11px; color: var(--muted);
+}
+.goal-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--yellow); }
+/* ── Calorías: gráfico vertical (eje x = tiempo, eje y = kcal) ── */
+.vchart { position: relative; margin-top: 6px; }
+.vcols { display: flex; align-items: stretch; height: 250px; }
+.vcol {
+  flex: 1 1 0; display: flex; flex-direction: column;
+  align-items: center; min-width: 0;
+}
+.vval {
+  height: 14px; font-size: 9px; color: var(--muted);
+  line-height: 14px; white-space: nowrap;
+}
+.vbarwrap {
+  flex: 1; width: 100%; min-height: 0;
+  display: flex; align-items: flex-end; justify-content: center;
+}
+.vbar { width: 100%; max-width: 36px; border-radius: 4px 4px 0 0; }
+.vday {
+  height: 28px; display: flex; flex-direction: column; align-items: center;
+  justify-content: flex-start; font-size: 9px; color: var(--muted);
+  text-transform: capitalize; white-space: nowrap; line-height: 1.35;
+}
+.vday-date { font-size: 8px; opacity: .8; }
+.vtoday .vday { color: var(--blue); font-weight: 700; }
+.vtoday .vbar { box-shadow: 0 0 8px rgba(59,130,246,.4); }
+.voverlay {
+  position: absolute; top: 14px; bottom: 28px;
+  left: 0; right: 0; pointer-events: none;
+}
+.vgrid { position: absolute; left: 0; right: 0; border-top: 1px solid var(--border); }
+.vgridv { position: absolute; top: 0; bottom: 0; border-left: 1px solid var(--border); }
+.vgrid > span { position: absolute; left: 0; top: -14px; font-size: 9px; color: var(--muted); }
+.vgrid > span.below { top: 2px; }
+.vline { position: absolute; left: 0; right: 0; border-top: 2px dashed var(--yellow); }
+.vline > span {
+  position: absolute; right: 0; top: -14px;
+  font-size: 9px; font-weight: 600; color: var(--yellow);
+}
+.vline > span.below { top: 3px; }
+.vline.tdee { border-color: #818cf8; }
+.vline.tdee > span { color: #818cf8; }
 /* ── Auth modal ── */
 .auth-overlay {
   position: fixed; inset: 0;

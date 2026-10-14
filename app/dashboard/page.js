@@ -14,7 +14,6 @@ import {
   getRecentWeights,
   getTargets,
   getTodayMeals,
-  getTodayWorkouts,
   groupCaloriesByDay,
   sumMacros,
 } from "../../lib/health";
@@ -76,8 +75,9 @@ export default function Dashboard() {
   const [profile, setProfile] = useState(null);
   const [todayMeals, setTodayMeals] = useState([]);
   const [recent, setRecent] = useState([]);
-  const [workouts, setWorkouts] = useState([]);
   const [weekDays, setWeekDays] = useState([]);
+  const [calMeals, setCalMeals] = useState([]);
+  const [calWindow, setCalWindow] = useState(7);
   const [weights, setWeights] = useState([]);
   const [weightWindow, setWeightWindow] = useState(30);
   const [loading, setLoading] = useState(true);
@@ -93,21 +93,19 @@ export default function Dashboard() {
     setLoading(true);
     setLoadError("");
     try {
-      const [t, prof, today, rec, todayW, weekMeals, wts] = await Promise.all([
+      const [t, prof, today, rec, weekMeals, wts] = await Promise.all([
         getTargets(user.id),
         getProfile(user.id).catch(() => null),
         getTodayMeals(user.id),
         getRecentMeals(user.id, 8),
-        getTodayWorkouts(user.id).catch(() => []),
-        getMealsSince(user.id, 7).catch(() => []),
+        getMealsSince(user.id, 90).catch(() => []),
         getRecentWeights(user.id, 365).catch(() => []),
       ]);
       setTargets(t);
       setProfile(prof);
       setTodayMeals(today);
       setRecent(rec);
-      setWorkouts(todayW);
-      setWeekDays(groupCaloriesByDay(weekMeals, 7));
+      setCalMeals(weekMeals);
       setWeights(wts);
     } catch (e) {
       setLoadError(e.message || "No se pudieron cargar los datos.");
@@ -119,6 +117,10 @@ export default function Dashboard() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    setWeekDays(groupCaloriesByDay(calMeals, calWindow));
+  }, [calMeals, calWindow]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -344,60 +346,11 @@ export default function Dashboard() {
             ))}
         </div>
 
-        <div className="card">
-          <div className="section-title">⚡ Ejercicio de hoy</div>
-          {loading && <p className="muted">Cargando…</p>}
-          {!loading && !workouts.length && (
-            <div className="empty-state">Sin entrenamientos hoy</div>
-          )}
-          {!loading &&
-            workouts.map((w) => (
-              <div className="meal-row" key={w.id}>
-                <div className="meal-name">
-                  💪 {w.type}
-                  <div className="muted">
-                    ⏱ {w.duration_min} min
-                    {w.notes ? ` · ${w.notes}` : ""}
-                  </div>
-                </div>
-                <div className="meal-cal">-{Math.round(w.calories_burned)} kcal</div>
-              </div>
-            ))}
-          {!loading && !!workouts.length && targets && (
-            <>
-              <div className="section-title" style={{ marginTop: 16 }}>
-                ⚖️ Balance neto del día
-              </div>
-              <div className="net-big">
-                {Math.round(
-                  totals.calories -
-                    workouts.reduce(
-                      (s, w) => s + (Number(w.calories_burned) || 0),
-                      0
-                    )
-                )}{" "}
-                kcal
-              </div>
-              <div className="muted">
-                🍽️ {Math.round(totals.calories)} consumidas · 🔥{" "}
-                {Math.round(
-                  workouts.reduce(
-                    (s, w) => s + (Number(w.calories_burned) || 0),
-                    0
-                  )
-                )}{" "}
-                quemadas · 🎯 {targets.calories} target
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-
-      {profile && (
-        <div className="card" style={{ marginBottom: 20 }}>
-          <div className="section-title">
-            👤 Perfil — {profile.display_name || profile.username || ""}
-          </div>
+        {profile && (
+          <div className="card">
+            <div className="section-title">
+              👤 Perfil — {profile.display_name || profile.username || ""}
+            </div>
           <div className="stat-grid">
             {profile.height_cm && (
               <Stat label="Altura" value={`${profile.height_cm} cm`} />
@@ -441,42 +394,51 @@ export default function Dashboard() {
             )}
           </div>
         </div>
-      )}
+        )}
+      </div>
 
-      <div className="grid-bottom">
-        <div className="card">
-          <div className="section-title">📅 Últimos 7 días — Calorías</div>
-          {loading && <p className="muted">Cargando…</p>}
-          {!loading && !weekDays.length && (
-            <div className="empty-state">Sin datos</div>
-          )}
-          {!loading &&
-            weekDays.map((d) => {
-              const max = Math.max(
-                targets?.calories || 2400,
-                ...weekDays.map((x) => x.calories)
-              );
-              const w = max > 0 ? Math.round((d.calories / max) * 100) : 0;
-              return (
-                <div className="day-row" key={d.key}>
-                  <div className="day-label">{d.label}</div>
-                  <div className="day-track">
-                    <div
-                      className="day-fill"
-                      style={{
-                        width: `${w}%`,
-                        background: barColor(pct(d.calories, targets?.calories || 2400)),
-                      }}
-                    />
-                  </div>
-                  <div className="day-val">{d.calories}</div>
-                </div>
-              );
-            })}
+      <div className="card" style={{ marginBottom: 20 }}>
+        <div className="cal-head">
+          <div className="section-title" style={{ margin: 0 }}>
+            📅 Calorías
+          </div>
+          <div className="pills" style={{ margin: 0 }}>
+            {[
+              [7, "7D"],
+              [14, "2S"],
+              [30, "1M"],
+              [90, "3M"],
+            ].map(([days, label]) => (
+              <button
+                key={label}
+                className={`pill${calWindow === days ? " active" : ""}`}
+                onClick={() => setCalWindow(days)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
+        <div className="goal-line">
+          <span className="goal-dot" /> Límite: {targets?.calories || 2400}{" "}
+          kcal · TDEE: {profile?.tdee || 2910} kcal
+        </div>
+        {loading && <p className="muted">Cargando…</p>}
+        {!loading && !weekDays.length && (
+          <div className="empty-state">Sin datos</div>
+        )}
+        {!loading && !!weekDays.length && (
+          <CalChart
+            days={weekDays}
+            target={targets?.calories || 2400}
+            tdee={profile?.tdee || 2910}
+            windowDays={calWindow}
+          />
+        )}
+      </div>
 
-        <div className="card">
-          <div className="section-title">⚖️ Progreso de peso</div>
+      <div className="card" style={{ marginBottom: 20 }}>
+        <div className="section-title">⚖️ Progreso de peso</div>
           {loading && <p className="muted">Cargando…</p>}
           {!loading && !weights.length && (
             <div className="empty-state">Sin registros de peso</div>
@@ -554,9 +516,116 @@ export default function Dashboard() {
               })()}
             </>
           )}
-        </div>
       </div>
     </main>
+  );
+}
+
+function CalChart({ days, target, tdee, windowDays }) {
+  const vals = days.map((d) => d.calories);
+  const max = Math.max(target * 1.15, tdee * 1.05, ...vals, 100);
+  const fmtTick = (v) =>
+    v >= 1000 ? `${(v / 1000).toFixed(1)}k` : `${Math.round(v)}`;
+  const step =
+    windowDays >= 90 ? 7 : days.length > 14 ? Math.ceil(days.length / 10) : 1;
+  const lineStep = windowDays >= 90 ? 3 : 1;
+  const gap = days.length > 30 ? 2 : days.length > 14 ? 3 : 6;
+  // División del eje y cada 500 kcal, como el original.
+  const yTicks = [];
+  for (let v = 0; v < max; v += 500) yTicks.push(v);
+  const topTick = yTicks.length ? yTicks[yTicks.length - 1] : 0;
+  return (
+    <div className="vchart">
+      <div className="voverlay">
+        {days.map(
+          (d, i) =>
+            i % lineStep === 0 && (
+              <div
+                key={d.key}
+                className="vgridv"
+                style={{ left: `${(i / days.length) * 100}%` }}
+              />
+            )
+        )}
+        {yTicks.map((v) => (
+          <div key={v} className="vgrid" style={{ bottom: `${(v / max) * 100}%` }}>
+            <span>{fmtTick(v)}</span>
+          </div>
+        ))}
+        {max - topTick > 1 && (
+          <div className="vgrid" style={{ bottom: "100%" }}>
+            <span className="below">{fmtTick(max)}</span>
+          </div>
+        )}
+        <div className="vline tdee" style={{ bottom: `${(tdee / max) * 100}%` }}>
+          <span className={(tdee / max) * 100 > 90 ? "below" : undefined}>
+            TDEE {tdee}
+          </span>
+        </div>
+        <div className="vline" style={{ bottom: `${(target / max) * 100}%` }}>
+          <span className={(target / max) * 100 > 90 ? "below" : undefined}>
+            Límite {target}
+          </span>
+        </div>
+      </div>
+      <div className="vcols" style={{ gap }}>
+        {days.map((d, i) => {
+          const h = Math.max(
+            d.calories > 0 ? 2 : 0,
+            (d.calories / max) * 100
+          );
+          const isToday = i === days.length - 1;
+          const full = new Date(d.key).toLocaleDateString("es", {
+            weekday: "short",
+            day: "numeric",
+            month: "short",
+          });
+          const label =
+            windowDays > 14
+              ? new Date(d.key).toLocaleDateString("es", {
+                  day: "numeric",
+                  month: "short",
+                })
+              : d.label;
+          const dateStr = new Date(d.key).toLocaleDateString("es", {
+            day: "numeric",
+            month: "short",
+          });
+          return (
+            <div
+              key={d.key}
+              className={`vcol${isToday ? " vtoday" : ""}`}
+              title={`${full}: ${d.calories} kcal`}
+            >
+              <div className="vval">
+                {windowDays <= 14 && d.calories > 0 ? d.calories : ""}
+              </div>
+              <div className="vbarwrap">
+                <div
+                  className="vbar"
+                  style={{
+                    height: `${h}%`,
+                    background:
+                      d.calories > target ? "var(--red)" : "var(--blue)",
+                  }}
+                />
+              </div>
+              <div className="vday">
+                {(i % step === 0 || isToday) &&
+                  (windowDays > 14 ? (
+                    label
+                  ) : (
+                    <>
+                      <span>{d.label}</span>
+                      <span className="vday-date">{dateStr}</span>
+                    </>
+                  ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
