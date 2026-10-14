@@ -367,7 +367,9 @@ export default function Dashboard() {
                     {w.notes ? ` · ${w.notes}` : ""}
                   </div>
                 </div>
-                <div className="meal-cal">-{Math.round(w.calories_burned)} kcal</div>
+                <div className="meal-cal">
+                  -{Math.round(w.calories_burned)} kcal
+                </div>
               </div>
             ))}
           {!loading && !!workouts.length && targets && (

@@ -134,7 +134,7 @@ a { color: var(--blue); }
 .meal-row:last-child { border-bottom: none; }
 .meal-time { font-size: 11px; color: var(--muted); min-width: 90px; }
 .meal-name { flex: 1; font-size: 13px; }
-.meal-cal { font-size: 12px; color: var(--orange); font-weight: 600; white-space: nowrap; }
+.meal-cal { font-size: 16px; color: var(--orange); font-weight: 600; white-space: nowrap; }
 .meal-del {
   background: transparent; border: 1px solid var(--border);
   color: var(--muted); border-radius: 8px; width: 26px; height: 26px;
@@ -164,7 +164,7 @@ a { color: var(--blue); }
 .stat-label { color: var(--muted); font-size: 11px; }
 .stat-value { font-weight: 600; font-size: 15px; margin-top: 2px; }
 /* ── Balance neto ── */
-.net-big { font-size: 28px; font-weight: 700; line-height: 1.1; margin-bottom: 6px; }
+.net-big { font-size: 24px; font-weight: 700; line-height: 1.1; margin-bottom: 6px; }
 /* ── Barras por día ── */
 .day-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
 .day-label { width: 44px; font-size: 12px; color: var(--muted); text-transform: capitalize; }
