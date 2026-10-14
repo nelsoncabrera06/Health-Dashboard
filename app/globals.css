@@ -231,6 +231,9 @@ a { color: var(--blue); }
 .vline > span.below { top: 3px; }
 .vline.tdee { border-color: #818cf8; }
 .vline.tdee > span { color: #818cf8; }
+/* ── Peso: gráfico de línea SVG ── */
+.wchart { width: 100%; height: auto; display: block; }
+.weight-note { font-size: 11px; color: var(--muted); margin-top: 6px; text-align: right; }
 /* ── Auth modal ── */
 .auth-overlay {
   position: fixed; inset: 0;

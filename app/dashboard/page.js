@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "../../components/AuthContext";
@@ -478,46 +478,204 @@ export default function Dashboard() {
                   </button>
                 ))}
               </div>
-              {(() => {
-                const cutoff = new Date();
-                cutoff.setDate(cutoff.getDate() - weightWindow);
-                const inWin = weights
-                  .filter((w) => new Date(w.measured_at + "T12:00:00") >= cutoff)
-                  .sort((a, b) => (a.measured_at < b.measured_at ? -1 : 1));
-                if (!inWin.length)
-                  return <div className="empty-state">Sin datos en este período</div>;
-                const vals = inWin.map((w) => Number(w.weight_kg));
-                const min = Math.min(...vals);
-                const max = Math.max(...vals);
-                const span = max - min || 1;
-                return inWin.map((w) => (
-                  <div className="day-row" key={w.id}>
-                    <div className="day-label">
-                      {new Date(w.measured_at + "T12:00:00").toLocaleDateString(
-                        "es",
-                        { day: "numeric", month: "short" }
-                      )}
-                    </div>
-                    <div className="day-track">
-                      <div
-                        className="day-fill"
-                        style={{
-                          width: `${Math.max(
-                            8,
-                            Math.round(((Number(w.weight_kg) - min) / span) * 100)
-                          )}%`,
-                          background: "var(--teal)",
-                        }}
-                      />
-                    </div>
-                    <div className="day-val">{w.weight_kg}</div>
-                  </div>
-                ));
-              })()}
+              <WeightChart
+                weights={weights}
+                goal={
+                  profile?.goal_weight_kg
+                    ? Number(profile.goal_weight_kg)
+                    : null
+                }
+                windowDays={weightWindow}
+              />
             </>
           )}
       </div>
     </main>
+  );
+}
+
+function WeightChart({ weights, goal, windowDays }) {
+  const wrapRef = useRef(null);
+  const [cw, setCw] = useState(640);
+  useEffect(() => {
+    if (!wrapRef.current) return;
+    const ro = new ResizeObserver((es) =>
+      setCw(Math.max(320, Math.round(es[0].contentRect.width)))
+    );
+    ro.observe(wrapRef.current);
+    return () => ro.disconnect();
+  }, []);
+  const byDate = {};
+  (weights || []).forEach((w) => {
+    byDate[w.measured_at] = Number(w.weight_kg);
+  });
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const slots = [];
+  for (let i = windowDays - 1; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    slots.push({ iso, date: d, value: byDate[iso] ?? null });
+  }
+  const valids = slots.filter((s) => s.value != null);
+  if (!valids.length)
+    return <div className="empty-state">Sin datos en este período</div>;
+
+  const vals = valids.map((s) => s.value);
+  const lo = Math.floor(Math.min(...vals, goal ?? Infinity) - 1);
+  const hi = Math.ceil(Math.max(...vals) + 1);
+  const span = hi - lo || 1;
+
+  const W = cw,
+    H = 260,
+    P = { l: 48, r: 12, t: 14, b: 34 };
+  const X = (i) =>
+    P.l + (i / Math.max(slots.length - 1, 1)) * (W - P.l - P.r);
+  const Y = (v) => P.t + (1 - (v - lo) / span) * (H - P.t - P.b);
+
+  // Ticks Y con paso lindo (1/2/5 × 10^n).
+  const rawStep = span / 5;
+  const mag = Math.pow(10, Math.floor(Math.log10(rawStep)));
+  const norm = rawStep / mag;
+  const yStep = (norm >= 5 ? 5 : norm >= 2 ? 2 : 1) * mag;
+  const yTicks = [];
+  for (let v = Math.ceil(lo / yStep) * yStep; v <= hi + 1e-9; v += yStep)
+    yTicks.push(Math.round(v * 100) / 100);
+
+  // Ticks X: hasta 8 fechas repartidas.
+  const m = Math.min(8, slots.length);
+  const xIdx = [
+    ...new Set(
+      Array.from({ length: m }, (_, k) =>
+        Math.round((k * (slots.length - 1)) / (m - 1))
+      )
+    ),
+  ];
+
+  const pts = valids.map((s) => ({
+    x: X(slots.indexOf(s)),
+    y: Y(s.value),
+    ...s,
+  }));
+  const line =
+    pts.length > 1
+      ? pts.map((p, i) => `${i ? "L" : "M"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ")
+      : "";
+  const area =
+    pts.length > 1
+      ? `${line} L${pts[pts.length - 1].x.toFixed(1)},${Y(lo).toFixed(1)} L${pts[0].x.toFixed(1)},${Y(lo).toFixed(1)} Z`
+      : "";
+  const diff = vals[vals.length - 1] - vals[0];
+
+  return (
+    <>
+      <div ref={wrapRef}>
+      <svg className="wchart" viewBox={`0 0 ${W} ${H}`}>
+        {yTicks.map((v) => (
+          <g key={v}>
+            <line x1={P.l} x2={W - P.r} y1={Y(v)} y2={Y(v)} stroke="#1e2a3a" />
+            <text
+              x={P.l - 6}
+              y={Y(v)}
+              dy="0.32em"
+              textAnchor="end"
+              fontSize="9"
+              fill="#64748b"
+            >
+              {v} kg
+            </text>
+          </g>
+        ))}
+        {xIdx.map((i) => (
+          <g key={slots[i].iso}>
+            <line
+              x1={X(i)}
+              x2={X(i)}
+              y1={P.t}
+              y2={H - P.b}
+              stroke="#1e2a3a"
+            />
+            <text
+              x={X(i)}
+              y={H - P.b + 13}
+              textAnchor="middle"
+              fontSize="9"
+              fill="#64748b"
+            >
+              {slots[i].date
+                .toLocaleDateString("es", { weekday: "short" })
+                .replace(".", "")}
+            </text>
+            <text
+              x={X(i)}
+              y={H - P.b + 25}
+              textAnchor="middle"
+              fontSize="8"
+              fill="#64748b"
+            >
+              {slots[i].date.toLocaleDateString("es", {
+                day: "numeric",
+                month: "short",
+              })}
+            </text>
+          </g>
+        ))}
+        {goal != null && (
+          <g>
+            <line
+              x1={P.l}
+              x2={W - P.r}
+              y1={Y(goal)}
+              y2={Y(goal)}
+              stroke="#34d399"
+              strokeWidth="1.5"
+              strokeDasharray="6 4"
+            />
+            <text
+              x={W - P.r}
+              y={Y(goal) - 4}
+              textAnchor="end"
+              fontSize="9"
+              fontWeight="600"
+              fill="#34d399"
+            >
+              Meta {goal} kg
+            </text>
+          </g>
+        )}
+        {area && <path d={area} fill="rgba(59,130,246,0.1)" />}
+        {line && (
+          <path
+            d={line}
+            fill="none"
+            stroke="#3b82f6"
+            strokeWidth="2"
+            strokeLinejoin="round"
+            strokeLinecap="round"
+          />
+        )}
+        {pts.map((p) => (
+          <circle key={p.iso} cx={p.x} cy={p.y} r="4" fill="#3b82f6">
+            <title>
+              {p.date.toLocaleDateString("es", {
+                weekday: "short",
+                day: "numeric",
+                month: "short",
+              })}
+              : {p.value} kg
+            </title>
+          </circle>
+        ))}
+      </svg>
+      </div>
+      {valids.length >= 2 && (
+        <div className="weight-note">
+          Cambio en el período: {diff > 0 ? "+" : ""}
+          {diff.toFixed(1)} kg
+        </div>
+      )}
+    </>
   );
 }
 
