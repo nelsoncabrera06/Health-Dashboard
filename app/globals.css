@@ -163,6 +163,7 @@ a { color: var(--blue); }
 @media(max-width:700px){ .stat-grid{ grid-template-columns: 1fr 1fr; } }
 .stat-label { color: var(--muted); font-size: 11px; }
 .stat-value { font-weight: 600; font-size: 15px; margin-top: 2px; }
+.stat-sub { font-size: 11px; color: var(--text); margin-top: 2px; }
 /* ── Balance neto ── */
 .net-big { font-size: 24px; font-weight: 700; line-height: 1.1; margin-bottom: 6px; }
 /* ── Barras por día ── */
@@ -181,6 +182,25 @@ a { color: var(--blue); }
   background: transparent; color: var(--muted); font-size: 11px; cursor: pointer;
 }
 .pill.active { background: var(--yellow); border-color: var(--yellow); color: #000; font-weight: 600; }
+/* ── Menú de usuario ── */
+.user-menu-wrap { position: relative; }
+.user-menu {
+  position: absolute; right: 0; top: calc(100% + 8px);
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 10px; min-width: 180px; padding: 6px;
+  z-index: 20; box-shadow: 0 8px 24px rgba(0,0,0,.4);
+}
+.user-menu a,
+.user-menu button {
+  display: block; width: 100%; text-align: left;
+  background: transparent; border: none; color: var(--text);
+  padding: 9px 12px; border-radius: 7px; font-size: 13px;
+  cursor: pointer; text-decoration: none;
+}
+.user-menu a:hover,
+.user-menu button:hover { background: var(--card2); }
+.user-menu .danger { color: var(--red); }
+.user-menu-sep { border-top: 1px solid var(--border); margin: 5px 0; }
 /* ── Calorías: header con pills + línea de límite (como el original) ── */
 .cal-head {
   display: flex; justify-content: space-between; align-items: center;

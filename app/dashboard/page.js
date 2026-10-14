@@ -89,6 +89,8 @@ export default function Dashboard() {
   const [formOpen, setFormOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
   const router = useRouter();
 
   const load = useCallback(async () => {
@@ -126,6 +128,21 @@ export default function Dashboard() {
   useEffect(() => {
     setWeekDays(groupCaloriesByDay(calMeals, calWindow));
   }, [calMeals, calWindow]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const close = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target))
+        setMenuOpen(false);
+    };
+    const esc = (e) => e.key === "Escape" && setMenuOpen(false);
+    document.addEventListener("mousedown", close);
+    document.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      document.removeEventListener("keydown", esc);
+    };
+  }, [menuOpen]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -197,7 +214,11 @@ export default function Dashboard() {
   return (
     <main className="dash">
       <div className="header">
-        <div className="header-left">
+        <Link
+          className="header-left"
+          href="/"
+          style={{ textDecoration: "none", color: "inherit" }}
+        >
           <div className="logo">🏋️</div>
           <div>
             <div className="title">Health Dashboard</div>
@@ -205,14 +226,27 @@ export default function Dashboard() {
               {user.displayName || user.username} · plan {user.tier}
             </div>
           </div>
-        </div>
+        </Link>
         <div className="header-right">
-          <Link className="btn btn-secondary" href="/">
-            ← Inicio
-          </Link>
-          <button className="btn btn-secondary" onClick={handleSignOut}>
-            Salir
-          </button>
+          <div className="user-menu-wrap" ref={menuRef}>
+            <button
+              className="btn btn-secondary"
+              onClick={() => setMenuOpen((o) => !o)}
+            >
+              👤 {profile?.display_name || user.displayName || user.username}
+            </button>
+            {menuOpen && (
+              <div className="user-menu">
+                <a href="#perfil" onClick={() => setMenuOpen(false)}>
+                  👤 Perfil
+                </a>
+                <div className="user-menu-sep" />
+                <button className="danger" onClick={handleSignOut}>
+                  Cerrar sesión
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -403,7 +437,7 @@ export default function Dashboard() {
       </div>
 
       {profile && (
-        <div className="card" style={{ marginBottom: 20 }}>
+        <div className="card" style={{ marginBottom: 20 }} id="perfil">
           <div className="section-title">
             👤 Perfil — {profile.display_name || profile.username || ""}
           </div>
@@ -428,6 +462,39 @@ export default function Dashboard() {
                   Number(weights[0].weight_kg) - Number(profile.goal_weight_kg)
                 ).toFixed(0)} kg`}
                 color="var(--yellow)"
+              />
+            )}
+            {profile.height_cm && weights[0] && (
+              <Stat
+                label="IMC"
+                {...(() => {
+                  const imc =
+                    Number(weights[0].weight_kg) /
+                    Math.pow(Number(profile.height_cm) / 100, 2);
+                  if (imc < 18.5)
+                    return {
+                      value: imc.toFixed(1),
+                      sub: "(Bajo peso: <18.5)",
+                      color: "var(--blue)",
+                    };
+                  if (imc < 25)
+                    return {
+                      value: imc.toFixed(1),
+                      sub: "(Normal: 18.5–25)",
+                      color: "var(--green)",
+                    };
+                  if (imc < 30)
+                    return {
+                      value: imc.toFixed(1),
+                      sub: "(Sobrepeso: 25–30)",
+                      color: "var(--yellow)",
+                    };
+                  return {
+                    value: imc.toFixed(1),
+                    sub: "(Obesidad: 30+)",
+                    color: "var(--red)",
+                  };
+                })()}
               />
             )}
             {profile.tdee && <Stat label="TDEE" value={`${profile.tdee} kcal`} />}
@@ -970,13 +1037,14 @@ function CalChart({ days, target, tdee, windowDays }) {
   );
 }
 
-function Stat({ label, value, color }) {
+function Stat({ label, value, color, sub }) {
   return (
     <div>
       <div className="stat-label">{label}</div>
       <div className="stat-value" style={color ? { color } : undefined}>
         {value}
       </div>
+      {sub && <div className="stat-sub">{sub}</div>}
     </div>
   );
 }
