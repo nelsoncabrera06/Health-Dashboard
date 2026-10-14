@@ -19,6 +19,7 @@ import {
   sumMacros,
 } from "../../lib/health";
 import { MEAL_PLAN } from "../../lib/mealPlan";
+import ChatWidget from "../../components/ChatWidget";
 
 function pct(val, target) {
   return target > 0 ? Math.min(100, Math.round((val / target) * 100)) : 0;
@@ -614,6 +615,7 @@ export default function Dashboard() {
       </div>
 
       <MealPlan />
+      <ChatWidget targets={targets} />
     </main>
   );
 }
