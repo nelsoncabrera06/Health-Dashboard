@@ -11,7 +11,7 @@ __pycache__/
 # Variables de entorno
 .env
 .env*.local
-
+.env.local.example
 
 # AI
 AGENTS.md
