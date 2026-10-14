@@ -14,6 +14,7 @@ import {
   getRecentWeights,
   getTargets,
   getTodayMeals,
+  getTodayWorkouts,
   groupCaloriesByDay,
   sumMacros,
 } from "../../lib/health";
@@ -77,6 +78,7 @@ export default function Dashboard() {
   const [todayMeals, setTodayMeals] = useState([]);
   const [recent, setRecent] = useState([]);
   const [weekDays, setWeekDays] = useState([]);
+  const [workouts, setWorkouts] = useState([]);
   const [calMeals, setCalMeals] = useState([]);
   const [calWindow, setCalWindow] = useState(7);
   const [weights, setWeights] = useState([]);
@@ -94,11 +96,12 @@ export default function Dashboard() {
     setLoading(true);
     setLoadError("");
     try {
-      const [t, prof, today, rec, weekMeals, wts] = await Promise.all([
+      const [t, prof, today, rec, todayW, weekMeals, wts] = await Promise.all([
         getTargets(user.id),
         getProfile(user.id).catch(() => null),
         getTodayMeals(user.id),
         getRecentMeals(user.id, 8),
+        getTodayWorkouts(user.id).catch(() => []),
         getMealsSince(user.id, 90).catch(() => []),
         getRecentWeights(user.id, 365).catch(() => []),
       ]);
@@ -106,6 +109,7 @@ export default function Dashboard() {
       setProfile(prof);
       setTodayMeals(today);
       setRecent(rec);
+      setWorkouts(todayW);
       setCalMeals(weekMeals);
       setWeights(wts);
     } catch (e) {
@@ -347,11 +351,60 @@ export default function Dashboard() {
             ))}
         </div>
 
-        {profile && (
-          <div className="card">
-            <div className="section-title">
-              👤 Perfil — {profile.display_name || profile.username || ""}
-            </div>
+        <div className="card">
+          <div className="section-title">⚡ Ejercicio de hoy</div>
+          {loading && <p className="muted">Cargando…</p>}
+          {!loading && !workouts.length && (
+            <div className="empty-state">Sin entrenamientos hoy</div>
+          )}
+          {!loading &&
+            workouts.map((w) => (
+              <div className="meal-row" key={w.id}>
+                <div className="meal-name">
+                  💪 {w.type}
+                  <div className="muted">
+                    ⏱ {w.duration_min} min
+                    {w.notes ? ` · ${w.notes}` : ""}
+                  </div>
+                </div>
+                <div className="meal-cal">-{Math.round(w.calories_burned)} kcal</div>
+              </div>
+            ))}
+          {!loading && !!workouts.length && targets && (
+            <>
+              <div className="section-title" style={{ marginTop: 16 }}>
+                ⚖️ Balance neto del día
+              </div>
+              <div className="net-big">
+                {Math.round(
+                  totals.calories -
+                    workouts.reduce(
+                      (s, w) => s + (Number(w.calories_burned) || 0),
+                      0
+                    )
+                )}{" "}
+                kcal
+              </div>
+              <div className="muted">
+                🍽️ {Math.round(totals.calories)} consumidas · 🔥{" "}
+                {Math.round(
+                  workouts.reduce(
+                    (s, w) => s + (Number(w.calories_burned) || 0),
+                    0
+                  )
+                )}{" "}
+                quemadas · 🎯 {targets.calories} target
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {profile && (
+        <div className="card" style={{ marginBottom: 20 }}>
+          <div className="section-title">
+            👤 Perfil — {profile.display_name || profile.username || ""}
+          </div>
           <div className="stat-grid">
             {profile.height_cm && (
               <Stat label="Altura" value={`${profile.height_cm} cm`} />
@@ -396,7 +449,6 @@ export default function Dashboard() {
           </div>
         </div>
         )}
-      </div>
 
       <div className="card" style={{ marginBottom: 20 }}>
         <div className="cal-head">
