@@ -17,6 +17,7 @@ import {
   groupCaloriesByDay,
   sumMacros,
 } from "../../lib/health";
+import { MEAL_PLAN } from "../../lib/mealPlan";
 
 function pct(val, target) {
   return target > 0 ? Math.min(100, Math.round((val / target) * 100)) : 0;
@@ -490,7 +491,135 @@ export default function Dashboard() {
             </>
           )}
       </div>
+
+      <MealPlan />
     </main>
+  );
+}
+
+function MealPlan() {
+  const p = MEAL_PLAN;
+  const meals = [
+    ["🌅 Desayuno", p.weekdays.desayuno],
+    ["☀️ Almuerzo", p.weekdays.almuerzo],
+    ["🏋️ Pre/Post Gym", p.weekdays.pre_gym],
+    ["🌙 Cena", p.weekdays.cena],
+  ];
+  const head = {
+    fontSize: 11,
+    color: "var(--muted)",
+    textTransform: "uppercase",
+    letterSpacing: ".08em",
+    marginBottom: 12,
+  };
+  return (
+    <div style={{ marginTop: 20 }}>
+      <div className="card" style={{ marginBottom: 12 }}>
+        <div style={head}>📋 Plan Semanal — Lunes a Viernes</div>
+        <div>
+          {meals.map(([label, m]) => (
+            <div
+              key={label}
+              style={{
+                marginBottom: 10,
+                paddingBottom: 10,
+                borderBottom: "1px solid var(--border)",
+              }}
+            >
+              <div
+                style={{
+                  fontWeight: 600,
+                  fontSize: 13,
+                  color: "var(--teal)",
+                }}
+              >
+                {label}{" "}
+                <span style={{ color: "var(--orange)", fontSize: 12 }}>
+                  {m.kcal} kcal
+                </span>
+              </div>
+              <div style={{ fontSize: 12, marginTop: 2 }}>{m.desc}</div>
+              <div
+                style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}
+              >
+                {m.note}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="card" style={{ marginBottom: 12 }}>
+        <div style={head}>🍕 Fines de Semana</div>
+        <div style={{ fontSize: 12 }}>{p.weekends.note}</div>
+        <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
+          💡 {p.weekends.tip}
+        </div>
+        <div style={{ fontSize: 12, color: "#34d399", marginTop: 4 }}>
+          Target: {p.weekends.target_kcal}
+        </div>
+      </div>
+      <div className="card">
+        <div style={head}>💡 Tips</div>
+        <div
+          style={{
+            fontSize: 11,
+            color: "var(--muted)",
+            textTransform: "uppercase",
+            letterSpacing: ".06em",
+            marginBottom: 8,
+            marginTop: 4,
+          }}
+        >
+          💡 Tips generales
+        </div>
+        {Object.entries(p.tips || {}).map(([k, v]) => (
+          <div
+            key={k}
+            style={{
+              marginBottom: 8,
+              padding: 8,
+              background: "var(--card2)",
+              borderRadius: 6,
+              fontSize: 12,
+            }}
+          >
+            <span style={{ color: "var(--blue)", fontWeight: 600 }}>
+              {k.replace(/_/g, " ")}:
+            </span>{" "}
+            {v}
+          </div>
+        ))}
+        <div
+          style={{
+            fontSize: 11,
+            color: "var(--muted)",
+            textTransform: "uppercase",
+            letterSpacing: ".06em",
+            marginBottom: 8,
+            marginTop: 12,
+          }}
+        >
+          🍽️ Tus hábitos
+        </div>
+        {Object.entries(p.habitos || {}).map(([k, v]) => (
+          <div
+            key={k}
+            style={{
+              marginBottom: 8,
+              padding: 8,
+              background: "var(--card2)",
+              borderRadius: 6,
+              fontSize: 12,
+            }}
+          >
+            <div style={{ fontWeight: 600, marginBottom: 2 }}>
+              {k.replace(/_/g, " ")}
+            </div>
+            <div style={{ color: "var(--muted)" }}>{v}</div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
