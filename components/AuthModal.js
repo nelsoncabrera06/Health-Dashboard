@@ -33,6 +33,7 @@ export default function AuthModal({ open, onClose }) {
   const router = useRouter();
   const [mode, setMode] = useState("login");
   const [username, setUsername] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -43,6 +44,7 @@ export default function AuthModal({ open, onClose }) {
 
   const reset = () => {
     setUsername("");
+    setIdentifier("");
     setEmail("");
     setPassword("");
     setConfirm("");
@@ -78,7 +80,7 @@ export default function AuthModal({ open, onClose }) {
       if (mode === "register") {
         await signIn({ username, email, password }, "register");
       } else {
-        await signIn({ email, password }, "login");
+        await signIn({ identifier, password }, "login");
       }
       close();
       router.push("/dashboard");
@@ -131,16 +133,28 @@ export default function AuthModal({ open, onClose }) {
               />
             </label>
           )}
-          <label className="auth-field">
-            <span>Email</span>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoComplete="email"
-              autoFocus={mode === "login"}
-            />
-          </label>
+          {mode === "login" ? (
+            <label className="auth-field">
+              <span>Email o usuario</span>
+              <input
+                type="text"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
+                autoComplete="username"
+                autoFocus
+              />
+            </label>
+          ) : (
+            <label className="auth-field">
+              <span>Email</span>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
+              />
+            </label>
+          )}
           <label className="auth-field">
             <span>Contraseña</span>
             <input

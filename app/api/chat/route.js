@@ -1,14 +1,14 @@
 import { createClient } from "@supabase/supabase-js";
+import { complete } from "../../../lib/ai";
 
-// Paso 9a: chat de texto con OpenRouter. La API key vive solo en el servidor.
-// El cliente manda su access token (Bearer) y acá se valida contra Supabase.
+// Chat de texto multi-provider (ver lib/ai.js: AI_PROVIDER=openrouter|gemini).
+// Las API keys viven solo en el servidor. El cliente manda su access token
+// (Bearer) y acá se valida contra Supabase.
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
-const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const MODEL = process.env.OPENROUTER_MODEL || "cohere/north-mini-code:free";
 const DAILY_LIMIT = 20;
 
 // Rate limit simple en memoria: userId -> { day, count }.
@@ -38,13 +38,6 @@ export async function POST(req) {
   const user = data?.user;
   if (error || !user)
     return Response.json({ error: "Sesión inválida." }, { status: 401 });
-
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey)
-    return Response.json(
-      { error: "Falta OPENROUTER_API_KEY en el servidor (.env)." },
-      { status: 500 }
-    );
 
   const day = todayKey();
   const u = usage.get(user.id);
@@ -79,49 +72,15 @@ export async function POST(req) {
       ? `${SYSTEM}\nObjetivos diarios del usuario: ${t.calories} kcal, ${t.protein}g proteína, ${t.carbs}g carbos, ${t.fat}g grasas.`
       : SYSTEM;
 
-  let r;
+  let text;
   try {
-    r = await fetch(OPENROUTER_URL, {
-      method: "POST",
-      // Sin timeout, un upstream colgado deja la request abierta para siempre.
-      signal: AbortSignal.timeout(30000),
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": "http://localhost:3100",
-        "X-Title": "Health Dashboard",
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [
-          { role: "system", content: sys },
-          ...messages.map((m) => ({
-            role: m.role,
-            content: m.content.slice(0, 4000),
-          })),
-        ],
-      }),
-    });
+    text = await complete({ system: sys, messages });
   } catch (e) {
     return Response.json(
-      {
-        error:
-          e?.name === "TimeoutError"
-            ? "El modelo tardó demasiado. Probá de nuevo."
-            : "No se pudo contactar al modelo.",
-      },
-      { status: 502 }
+      { error: e.message || "Error del modelo." },
+      { status: e.status || 502 }
     );
   }
-  if (!r.ok) {
-    const text = await r.text().catch(() => "");
-    return Response.json(
-      { error: `El modelo respondió ${r.status}. ${text.slice(0, 200)}` },
-      { status: 502 }
-    );
-  }
-  const out = await r.json();
-  const text = out?.choices?.[0]?.message?.content || "";
 
   let estimate = null;
   let reply = text;
