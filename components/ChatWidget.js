@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { supabase } from "../lib/supabaseClient";
+import { getSupabase } from "../lib/supabaseClient";
 import { addMeal } from "../lib/health";
 
 // Paso 9a: ventana de chat abajo a la derecha (solo texto).
@@ -105,7 +105,7 @@ export default function ChatWidget({ targets, userId, onSaved, mode = "side" }) 
     setMsgs(next);
     setSending(true);
     try {
-      const { data } = await supabase.auth.getSession();
+      const { data } = await getSupabase().auth.getSession();
       const token = data?.session?.access_token;
       const r = await fetch("/api/chat", {
         method: "POST",

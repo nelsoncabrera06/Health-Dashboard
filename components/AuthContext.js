@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
-import { supabase } from "../lib/supabaseClient";
+import { getSupabase } from "../lib/supabaseClient";
 import {
   getCurrentUser,
   login,
@@ -23,7 +23,7 @@ export function AuthProvider({ children }) {
       setUser(u);
       setReady(true);
     });
-    const { data: sub } = supabase.auth.onAuthStateChange(() => {
+    const { data: sub } = getSupabase().auth.onAuthStateChange(() => {
       getCurrentUser().then((u) => {
         if (active) setUser(u);
       });
@@ -46,7 +46,7 @@ export function AuthProvider({ children }) {
   const signInWithGoogle = () => authSignInWithGoogle();
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    await getSupabase().auth.signOut();
     setUser(null);
   };
 
