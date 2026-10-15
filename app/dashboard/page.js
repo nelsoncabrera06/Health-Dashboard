@@ -615,7 +615,7 @@ export default function Dashboard() {
       </div>
 
       <MealPlan />
-      <ChatWidget targets={targets} />
+      <ChatWidget targets={targets} userId={user?.id} onSaved={load} />
     </main>
   );
 }

@@ -288,6 +288,22 @@ a { color: var(--blue); }
 }
 .chat-est-title { font-weight: 700; color: var(--orange); }
 .chat-est-macros { color: var(--muted); margin-top: 2px; }
+.chat-est-actions { display: flex; gap: 6px; margin-top: 8px; }
+.chat-est-btn {
+  flex: 1; background: var(--blue); border: none;
+  color: #fff; border-radius: 8px; padding: 6px 10px; font-size: 12px;
+  font-weight: 600; cursor: pointer;
+}
+.chat-est-btn.secondary {
+  background: transparent; color: var(--muted);
+  border: 1px solid var(--border); flex: 0 0 auto;
+}
+.chat-est-btn.secondary:hover:not(:disabled) { color: var(--red); border-color: var(--red); filter: none; }
+.chat-est-btn:hover:not(:disabled) { filter: brightness(1.1); }
+.chat-est-btn:disabled { opacity: .6; cursor: default; }
+.chat-est-saved { margin-top: 8px; color: var(--green); font-weight: 600; }
+.chat-est-discarded { margin-top: 8px; color: var(--muted); font-weight: 600; }
+.chat-est-err { margin-top: 6px; color: var(--red); }
 .chat-input { display: flex; gap: 8px; padding: 10px; border-top: 1px solid var(--border); }
 .chat-input input {
   flex: 1; background: var(--bg); border: 1px solid var(--border);

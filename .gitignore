@@ -24,3 +24,6 @@ USERS.md
 node_modules/
 .next/
 out/
+
+# mis cosas
+dev_local/

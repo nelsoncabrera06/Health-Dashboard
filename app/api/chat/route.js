@@ -18,8 +18,10 @@ const SYSTEM = `Sos el asistente de nutrición de Health Dashboard. Hablás espa
 Cuando el usuario te cuenta qué comió, estimá calorías y macros (proteína, carbos, grasas en gramos).
 Si falta info (porciones, ingredientes), igual estimá con supuestos razonables y avisalo en una línea.
 Si el usuario saluda o pregunta algo general, respondé normal sin estimar nada.
+Si te pregunta si podés registrar, anotar o guardar la comida: la app tiene un botón "Registrar" justo debajo de tu estimación, así que NO digas que no podés. Contestá que con ese botón queda guardado en el día. Nunca menciones herramientas, funciones ni bases de datos.
 IMPORTANTE: siempre que haya una estimación, cerrá tu respuesta con una línea separada con este formato exacto:
 ESTIMACIÓN: {"meal": "nombre corto", "calories": N, "protein": N, "carbs": N, "fat": N}
+Si el usuario mencionó cualquier comida o bebida, esa línea es obligatoria. Escribí todo en texto plano, sin markdown: nada de asteriscos, negritas, guiones bajos ni backticks.
 Aclaración: son estimaciones aproximadas, no consejo médico.`;
 
 function todayKey() {
@@ -81,6 +83,8 @@ export async function POST(req) {
   try {
     r = await fetch(OPENROUTER_URL, {
       method: "POST",
+      // Sin timeout, un upstream colgado deja la request abierta para siempre.
+      signal: AbortSignal.timeout(30000),
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
@@ -98,9 +102,14 @@ export async function POST(req) {
         ],
       }),
     });
-  } catch {
+  } catch (e) {
     return Response.json(
-      { error: "No se pudo contactar al modelo." },
+      {
+        error:
+          e?.name === "TimeoutError"
+            ? "El modelo tardó demasiado. Probá de nuevo."
+            : "No se pudo contactar al modelo.",
+      },
       { status: 502 }
     );
   }
@@ -116,24 +125,44 @@ export async function POST(req) {
 
   let estimate = null;
   let reply = text;
-  const mLine = text.match(/ESTIMACIÓN:\s*(\{.*\})/);
+  // Texto plano en la burbuja: el modelo igual mete *cursivas* o **negritas**.
+  const stripMd = (s) =>
+    s
+      .replace(/\*\*/g, "")
+      .replace(/(^|[\s(])\*([^*\n]+)\*/g, "$1$2")
+      .replace(/`/g, "")
+      .replace(/\n{3,}/g, "\n\n");
+  // El modelo a veces envuelve la línea en markdown (`**ESTIMACIÓN:** {...}`)
+  // y a veces usa claves en español (comida/calorias/...). Se tolera todo eso.
+  const norm = text.replace(/[*`]/g, "");
+  const mLine =
+    norm.match(/ESTIMACI[ÓO]N:?\s*(\{[^{}]*\})/i) ||
+    norm.match(/(\{[^{}]*"(calories|calorias|kcal)"[^{}]*\})/i);
   if (mLine) {
+    const num = (o, ...keys) => {
+      for (const k of keys) if (isFinite(+o[k])) return Math.round(+o[k]);
+      return 0;
+    };
     try {
       const e = JSON.parse(mLine[1]);
-      if (e && isFinite(+e.calories)) {
+      if (e && isFinite(+e.calories ?? +e.calorias ?? +e.kcal)) {
         estimate = {
-          meal: String(e.meal || "Comida"),
-          calories: Math.round(+e.calories),
-          protein: Math.round(+e.protein || 0),
-          carbs: Math.round(+e.carbs || 0),
-          fat: Math.round(+e.fat || 0),
+          meal: String(e.meal || e.comida || e.nombre || "Comida"),
+          calories: num(e, "calories", "calorias", "kcal"),
+          protein: num(e, "protein", "proteinas", "proteina"),
+          carbs: num(e, "carbs", "carbos", "carbohidratos", "hidratos"),
+          fat: num(e, "fat", "grasas", "grasa"),
         };
       }
     } catch {
       // Si el JSON viene roto, se devuelve el texto pelado.
     }
-    reply = text.replace(mLine[0], "").trim();
+    // La línea de estimación nunca se le muestra al usuario (matchee o no).
+    reply = stripMd(text.replace(/^.*ESTIMACI[ÓO]N:?\s*\{[^}]*\}\s*$/im, "").replace(mLine[1], ""))
+      .replace(/[-\s:]+$/, "")
+      .trim();
   }
+  reply = stripMd(reply).trim();
 
   usage.set(user.id, {
     day,
