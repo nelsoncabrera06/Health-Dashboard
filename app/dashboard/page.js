@@ -91,8 +91,26 @@ export default function Dashboard() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
+  // Cómo se muestra el chat: "side" (achica el dashboard) o "overlay" (encima).
+  const [chatMode, setChatMode] = useState("side");
   const menuRef = useRef(null);
   const router = useRouter();
+
+  // Preferencia de UI: se lee después de montar porque `localStorage` no existe
+  // en el servidor (rompería el render inicial).
+  useEffect(() => {
+    const saved = localStorage.getItem("chatMode");
+    if (saved === "side" || saved === "overlay") setChatMode(saved);
+  }, []);
+
+  const changeChatMode = (mode) => {
+    setChatMode(mode);
+    try {
+      localStorage.setItem("chatMode", mode);
+    } catch {
+      // Modo incógnito o storage lleno: la preferencia vive solo en memoria.
+    }
+  };
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -241,6 +259,24 @@ export default function Dashboard() {
                 <a href="#perfil" onClick={() => setMenuOpen(false)}>
                   👤 Perfil
                 </a>
+                <div className="user-menu-sep" />
+                <div className="menu-label">Chat</div>
+                <div className="seg" role="group" aria-label="Cómo se muestra el chat">
+                  <button
+                    className={chatMode === "side" ? "active" : ""}
+                    onClick={() => changeChatMode("side")}
+                    title="El chat abre de costado y achica el dashboard"
+                  >
+                    ↔ De costado
+                  </button>
+                  <button
+                    className={chatMode === "overlay" ? "active" : ""}
+                    onClick={() => changeChatMode("overlay")}
+                    title="El chat abre encima del dashboard"
+                  >
+                    ▣ Encima
+                  </button>
+                </div>
                 <div className="user-menu-sep" />
                 <button className="danger" onClick={handleSignOut}>
                   Cerrar sesión
@@ -615,7 +651,12 @@ export default function Dashboard() {
       </div>
 
       <MealPlan />
-      <ChatWidget targets={targets} userId={user?.id} onSaved={load} />
+      <ChatWidget
+        targets={targets}
+        userId={user?.id}
+        onSaved={load}
+        mode={chatMode}
+      />
     </main>
   );
 }
