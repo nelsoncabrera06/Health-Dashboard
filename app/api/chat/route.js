@@ -4,10 +4,14 @@ import { complete } from "../../../lib/ai";
 // Chat de texto multi-provider (ver lib/ai.js: AI_PROVIDER=openrouter|gemini).
 // Las API keys viven solo en el servidor. El cliente manda su access token
 // (Bearer) y acá se valida contra Supabase.
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
+// El cliente se crea por request: a nivel módulo rompería el build si faltan
+// las env vars (Vercel evalúa el módulo en "Collecting page data").
+function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !anonKey) return null;
+  return createClient(url, anonKey);
+}
 
 const DAILY_LIMIT = 20;
 
@@ -34,6 +38,13 @@ export async function POST(req) {
   if (!token)
     return Response.json({ error: "No autenticado." }, { status: 401 });
 
+  const supabase = getSupabase();
+  if (!supabase) {
+    return Response.json(
+      { error: "Falta configurar Supabase en el servidor." },
+      { status: 500 }
+    );
+  }
   const { data, error } = await supabase.auth.getUser(token);
   const user = data?.user;
   if (error || !user)
