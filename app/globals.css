@@ -410,8 +410,9 @@ body.chat-resizing { user-select: none; transition: none; }
 }
 .auth-google:disabled { opacity: 0.6; }
 .auth-demo {
-  width: 100%; background: transparent; color: var(--text);
-  border: 1px dashed var(--muted); border-radius: 8px;
-  padding: 10px; font-weight: 600; cursor: pointer;
+  width: 100%; background: #16a34a; color: #fff; border: none;
+  border-radius: 8px; padding: 12px; font-size: 15px;
+  font-weight: 700; cursor: pointer;
 }
+.auth-demo:hover { background: #22c55e; }
 .auth-demo:disabled { opacity: 0.6; }

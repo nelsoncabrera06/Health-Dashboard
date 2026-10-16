@@ -120,6 +120,21 @@ export default function AuthModal({ open, onClose }) {
         <h2 className="auth-title">
           {mode === "login" ? "Iniciar sesión" : "Crear cuenta"}
         </h2>
+        {demoEmail && demoPassword && (
+          <>
+            <button
+              type="button"
+              className="auth-demo"
+              onClick={handleDemo}
+              disabled={busy}
+            >
+              {busy ? "…" : "⚡ Probar demo sin registrarme"}
+            </button>
+            <div className="auth-divider">
+              <span>o ingresá con tu cuenta</span>
+            </div>
+          </>
+        )}
         <div className="auth-tabs">
           <button
             type="button"
@@ -207,21 +222,6 @@ export default function AuthModal({ open, onClose }) {
           <GoogleIcon />
           Continuar con Google
         </button>
-        {demoEmail && demoPassword && (
-          <>
-            <div className="auth-divider">
-              <span>o explorá sin registrarte</span>
-            </div>
-            <button
-              type="button"
-              className="auth-demo"
-              onClick={handleDemo}
-              disabled={busy}
-            >
-              {busy ? "…" : "Probar demo"}
-            </button>
-          </>
-        )}
         <p style={{ textAlign: "center", marginTop: 12 }}>
           <Link
             href="/"
