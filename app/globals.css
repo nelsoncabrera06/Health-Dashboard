@@ -408,3 +408,10 @@ body.chat-resizing { user-select: none; transition: none; }
   background: #fff; color: #333; border: none;
   border-radius: 8px; padding: 10px; font-weight: 600; cursor: pointer;
 }
+.auth-google:disabled { opacity: 0.6; }
+.auth-demo {
+  width: 100%; background: transparent; color: var(--text);
+  border: 1px dashed var(--muted); border-radius: 8px;
+  padding: 10px; font-weight: 600; cursor: pointer;
+}
+.auth-demo:disabled { opacity: 0.6; }

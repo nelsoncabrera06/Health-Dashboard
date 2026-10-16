@@ -39,6 +39,9 @@ export default function AuthModal({ open, onClose }) {
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  // Cuenta demo pública (ver .env.example). Solo se muestra si está configurada.
+  const demoEmail = process.env.NEXT_PUBLIC_DEMO_EMAIL;
+  const demoPassword = process.env.NEXT_PUBLIC_DEMO_PASSWORD;
 
   if (!open) return null;
 
@@ -63,6 +66,18 @@ export default function AuthModal({ open, onClose }) {
     setBusy(true);
     try {
       await signInWithGoogle();
+    } catch (err) {
+      setError(err.message);
+      setBusy(false);
+    }
+  };
+  const handleDemo = async () => {
+    setError("");
+    setBusy(true);
+    try {
+      await signIn({ identifier: demoEmail, password: demoPassword }, "login");
+      close();
+      router.push("/dashboard");
     } catch (err) {
       setError(err.message);
       setBusy(false);
@@ -192,6 +207,21 @@ export default function AuthModal({ open, onClose }) {
           <GoogleIcon />
           Continuar con Google
         </button>
+        {demoEmail && demoPassword && (
+          <>
+            <div className="auth-divider">
+              <span>o explorá sin registrarte</span>
+            </div>
+            <button
+              type="button"
+              className="auth-demo"
+              onClick={handleDemo}
+              disabled={busy}
+            >
+              {busy ? "…" : "Probar demo"}
+            </button>
+          </>
+        )}
         <p style={{ textAlign: "center", marginTop: 12 }}>
           <Link
             href="/"
