@@ -18,15 +18,21 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     let active = true;
-    getCurrentUser().then((u) => {
-      if (!active) return;
-      setUser(u);
-      setReady(true);
-    });
-    const { data: sub } = getSupabase().auth.onAuthStateChange(() => {
-      getCurrentUser().then((u) => {
-        if (active) setUser(u);
+    // Con catch: si Supabase falla (ej. vars ausentes en el bundle),
+    // la app muestra el login en vez de colgarse en "Cargando…".
+    getCurrentUser()
+      .catch(() => null)
+      .then((u) => {
+        if (!active) return;
+        setUser(u);
+        setReady(true);
       });
+    const { data: sub } = getSupabase().auth.onAuthStateChange(() => {
+      getCurrentUser()
+        .catch(() => null)
+        .then((u) => {
+          if (active) setUser(u);
+        });
     });
     return () => {
       active = false;
