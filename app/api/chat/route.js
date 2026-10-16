@@ -23,6 +23,7 @@ Cuando el usuario te cuenta qué comió, estimá calorías y macros (proteína, 
 Si falta info (porciones, ingredientes), igual estimá con supuestos razonables y avisalo en una línea.
 Si el usuario saluda o pregunta algo general, respondé normal sin estimar nada.
 Si te pregunta si podés registrar, anotar o guardar la comida: la app tiene un botón "Registrar" justo debajo de tu estimación, así que NO digas que no podés. Contestá que con ese botón queda guardado en el día. Nunca menciones herramientas, funciones ni bases de datos.
+Si el usuario adjunta una foto de su comida, describí en una línea qué ves en el plato y estimá desde la imagen. La foto siempre llega bien al modelo: nunca digas que no ves ninguna foto.
 IMPORTANTE: siempre que haya una estimación, cerrá tu respuesta con una línea separada con este formato exacto:
 ESTIMACIÓN: {"meal": "nombre corto", "calories": N, "protein": N, "carbs": N, "fat": N}
 Si el usuario mencionó cualquier comida o bebida, esa línea es obligatoria. Escribí todo en texto plano, sin markdown: nada de asteriscos, negritas, guiones bajos ni backticks.
@@ -77,6 +78,18 @@ export async function POST(req) {
   if (!messages || !messages.length)
     return Response.json({ error: "Sin mensajes." }, { status: 400 });
 
+  // Visión (paso 11): la foto llega como data URL (el cliente la comprime).
+  // El historial se manda solo texto; la imagen va aparte al provider.
+  const image =
+    typeof body?.image === "string" && body.image.startsWith("data:image/")
+      ? body.image
+      : null;
+  if (typeof body?.image === "string" && !image)
+    return Response.json({ error: "La foto llegó en un formato inválido." }, { status: 400 });
+  const last = messages[messages.length - 1];
+  if (image && last.role === "user" && !last.content.trim())
+    last.content = "Describí qué ves en la foto y estimá calorías y macros.";
+
   const t = body?.targets;
   const sys =
     t && typeof t === "object"
@@ -85,7 +98,7 @@ export async function POST(req) {
 
   let text;
   try {
-    text = await complete({ system: sys, messages });
+    text = await complete({ system: sys, messages, image });
   } catch (e) {
     return Response.json(
       { error: e.message || "Error del modelo." },

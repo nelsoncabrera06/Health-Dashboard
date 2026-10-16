@@ -3,11 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import { getSupabase } from "../lib/supabaseClient";
 import { addMeal } from "../lib/health";
+import { validateImageFile, compressImage } from "../lib/chatPhoto";
 
-// Paso 9a: ventana de chat abajo a la derecha (solo texto).
-// Paso 9c: la estimación se puede registrar en `meals` con un botón.
-// Manda el access token de Supabase; la API key de OpenRouter
-// queda solo en el servidor (app/api/chat/route.js).
+// Límite de adjunto y compresión: ver lib/chatPhoto.js.
 const MIN_W = 320;
 const DEFAULT_W = 420;
 // El máximo es media pantalla, como pidió Nelson. `window` no existe en el
@@ -30,8 +28,14 @@ export default function ChatWidget({ targets, userId, onSaved, mode = "side" }) 
   const [savingIdx, setSavingIdx] = useState(null);
   const [width, setWidth] = useState(DEFAULT_W);
   const [resizing, setResizing] = useState(false);
+  // Paso 11: foto adjunta (data URL comprimida) + menú del botón "+".
+  const [photo, setPhoto] = useState(null);
+  const [photoError, setPhotoError] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
   const bottomRef = useRef(null);
   const widthRef = useRef(DEFAULT_W);
+  const galleryRef = useRef(null);
+  const cameraRef = useRef(null);
 
   // El panel empuja el dashboard en desktop y en modo "de costado": la clase va
   // en el <body> porque el padding que achica el contenido lo define el layout.
@@ -96,12 +100,35 @@ export default function ChatWidget({ targets, userId, onSaved, mode = "side" }) 
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [msgs, open]);
 
+  const onPickFile = async (e) => {
+    setMenuOpen(false);
+    const f = e.target.files?.[0];
+    // Se limpia para que se pueda elegir el mismo archivo dos veces.
+    e.target.value = "";
+    if (!f) return;
+    const err = validateImageFile(f);
+    if (err) {
+      setPhotoError(err);
+      return;
+    }
+    setPhotoError("");
+    try {
+      setPhoto(await compressImage(f));
+    } catch {
+      setPhotoError("No se pudo procesar la imagen.");
+    }
+  };
+
   const send = async (e) => {
     e?.preventDefault();
     const text = input.trim();
-    if (!text || sending) return;
+    if ((!text && !photo) || sending) return;
     setInput("");
-    const next = [...msgs, { role: "user", content: text }];
+    // La foto viaja en el body (el route todavía la ignora: el análisis con
+    // visión es el siguiente paso). En el hilo queda visible igual.
+    const shot = photo;
+    setPhoto(null);
+    const next = [...msgs, { role: "user", content: text, image: shot }];
     setMsgs(next);
     setSending(true);
     try {
@@ -114,7 +141,8 @@ export default function ChatWidget({ targets, userId, onSaved, mode = "side" }) 
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
-          messages: next.slice(-20),
+          messages: next.slice(-20).map(({ role, content }) => ({ role, content })),
+          image: shot,
           targets: targets
             ? {
                 calories: targets.calories,
@@ -218,6 +246,13 @@ export default function ChatWidget({ targets, userId, onSaved, mode = "side" }) 
         <div className="chat-msgs">
           {msgs.map((m, i) => (
             <div key={i} className={`chat-msg ${m.role}`}>
+              {m.image && (
+                <img
+                  className="chat-photo"
+                  src={m.image}
+                  alt="Foto adjunta de la comida"
+                />
+              )}
               {!!m.content && <div className="chat-bubble">{m.content}</div>}
               {m.estimate && (
                 <div className="chat-est">
@@ -265,14 +300,75 @@ export default function ChatWidget({ targets, userId, onSaved, mode = "side" }) 
           )}
           <div ref={bottomRef} />
         </div>
+        {photo && (
+          <div className="chat-preview">
+            <img src={photo} alt="Vista previa de la foto a enviar" />
+            <button
+              type="button"
+              className="chat-preview-x"
+              onClick={() => setPhoto(null)}
+              aria-label="Quitar la foto"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+        {photoError && <div className="chat-photo-err">⚠️ {photoError}</div>}
         <form className="chat-input" onSubmit={send}>
+          <div className="chat-plus-wrap">
+            <button
+              type="button"
+              className="chat-plus"
+              onClick={() => setMenuOpen((v) => !v)}
+              aria-label="Adjuntar foto"
+              aria-expanded={menuOpen}
+              title="Adjuntar foto"
+            >
+              ＋
+            </button>
+            {menuOpen && (
+              <div className="chat-attach-menu" role="menu">
+                <button
+                  type="button"
+                  onClick={() => cameraRef.current?.click()}
+                >
+                  📷 Tomar foto
+                </button>
+                <button
+                  type="button"
+                  onClick={() => galleryRef.current?.click()}
+                >
+                  🖼️ Elegir de la galería
+                </button>
+              </div>
+            )}
+          </div>
+          <input
+            type="file"
+            ref={galleryRef}
+            accept="image/*"
+            hidden
+            onChange={onPickFile}
+          />
+          <input
+            type="file"
+            ref={cameraRef}
+            accept="image/*"
+            capture="environment"
+            hidden
+            onChange={onPickFile}
+          />
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Qué comiste?"
             maxLength={1000}
           />
-          <button className="btn" type="submit" disabled={sending || !input.trim()}>
+          <button
+            className="btn"
+            type="submit"
+            disabled={sending || (!input.trim() && !photo)}
+          >
             ➤
           </button>
         </form>
