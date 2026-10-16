@@ -238,7 +238,7 @@ export default function ChatWidget({ targets, userId, onSaved, mode = "side" }) 
         />
         <div className="chat-head">
           <div>
-            <div className="chat-title">🤖 Asistente</div>
+            <div className="chat-title">🤖 Asistente AI</div>
             <div className="chat-sub">
               Estimaciones, no consejo médico
             </div>
