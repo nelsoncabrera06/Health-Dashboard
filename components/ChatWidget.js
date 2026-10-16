@@ -32,6 +32,15 @@ export default function ChatWidget({ targets, userId, onSaved, mode = "side" }) 
   const [photo, setPhoto] = useState(null);
   const [photoError, setPhotoError] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
+  // "Tomar foto" solo tiene sentido con cámara trasera (celu). En PC el
+  // capture abriría el mismo file picker que la galería: se oculta.
+  // Se lee en un efecto (no en el useState) porque en el servidor no hay window.
+  const [canCamera, setCanCamera] = useState(false);
+  useEffect(() => {
+    setCanCamera(
+      !!window.matchMedia?.("(pointer: coarse)").matches
+    );
+  }, []);
   const bottomRef = useRef(null);
   const widthRef = useRef(DEFAULT_W);
   const galleryRef = useRef(null);
@@ -328,17 +337,19 @@ export default function ChatWidget({ targets, userId, onSaved, mode = "side" }) 
             </button>
             {menuOpen && (
               <div className="chat-attach-menu" role="menu">
-                <button
-                  type="button"
-                  onClick={() => cameraRef.current?.click()}
-                >
-                  📷 Tomar foto
-                </button>
+                {canCamera && (
+                  <button
+                    type="button"
+                    onClick={() => cameraRef.current?.click()}
+                  >
+                    📷 Tomar foto
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => galleryRef.current?.click()}
                 >
-                  🖼️ Elegir de la galería
+                  🖼️ Elegir imagen
                 </button>
               </div>
             )}
