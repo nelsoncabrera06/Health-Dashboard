@@ -19,9 +19,9 @@ import {
   sumMacros,
 } from "../../lib/health";
 import { MEAL_PLAN } from "../../lib/mealPlan";
-import { activityLabel, countryLabel, dietLabel, sexLabel } from "../../lib/profile";
 import ChatWidget from "../../components/ChatWidget";
 import Onboarding from "../../components/Onboarding";
+import ProfileModal from "../../components/ProfileModal";
 
 function pct(val, target) {
   return target > 0 ? Math.min(100, Math.round((val / target) * 100)) : 0;
@@ -94,8 +94,9 @@ export default function Dashboard() {
   const [formError, setFormError] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   // Onboarding: se abre solo la primera vez (perfil sin `onboarded_at`) y
-  // después desde "✏️ Editar" en la tarjeta de perfil.
+  // después desde "✏️ Editar" en la ventana "Mis datos".
   const [onboardingOpen, setOnboardingOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const autoOnboarding = useRef(false);
   // Cómo se muestra el chat: "side" (achica el dashboard) o "overlay" (encima).
   const [chatMode, setChatMode] = useState("side");
@@ -274,13 +275,18 @@ export default function Dashboard() {
               className="btn btn-secondary"
               onClick={() => setMenuOpen((o) => !o)}
             >
-              👤 {profile?.display_name || user.displayName || user.username}
+              {profile?.display_name || user.displayName || user.username}
             </button>
             {menuOpen && (
               <div className="user-menu">
-                <a href="#perfil" onClick={() => setMenuOpen(false)}>
-                  👤 Perfil
-                </a>
+                <button
+                  onClick={() => {
+                    setProfileOpen(true);
+                    setMenuOpen(false);
+                  }}
+                >
+                  Mis datos
+                </button>
                 <div className="user-menu-sep" />
                 <div className="menu-label">Chat</div>
                 <div className="seg" role="group" aria-label="Cómo se muestra el chat">
@@ -495,131 +501,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {profile && (
-        <div className="card" style={{ marginBottom: 20 }} id="perfil">
-          <div className="cal-head" style={{ marginBottom: 14 }}>
-            <div className="section-title" style={{ margin: 0 }}>
-              👤 Perfil — {profile.display_name || profile.username || ""}
-            </div>
-            <button
-              className="btn btn-secondary btn-sm"
-              onClick={() => setOnboardingOpen(true)}
-            >
-              ✏️ Editar
-            </button>
-          </div>
-          <div className="stat-grid">
-            {profile.height_cm && (
-              <Stat label="Altura" value={`${profile.height_cm} cm`} />
-            )}
-            {weights[0] && (
-              <Stat label="Peso actual" value={`${weights[0].weight_kg} kg`} />
-            )}
-            {profile.goal_weight_kg && (
-              <Stat
-                label="Objetivo"
-                value={`${profile.goal_weight_kg} kg`}
-                color="var(--green)"
-              />
-            )}
-            {weights[0] && profile.goal_weight_kg && (
-              <Stat
-                label={
-                  Number(weights[0].weight_kg) >= Number(profile.goal_weight_kg)
-                    ? "Por bajar"
-                    : "Por subir"
-                }
-                value={`${Math.abs(
-                  Number(weights[0].weight_kg) - Number(profile.goal_weight_kg)
-                ).toFixed(1)} kg`}
-                color="var(--yellow)"
-              />
-            )}
-            {profile.height_cm && weights[0] && (
-              <Stat
-                label="IMC"
-                {...(() => {
-                  const imc =
-                    Number(weights[0].weight_kg) /
-                    Math.pow(Number(profile.height_cm) / 100, 2);
-                  if (imc < 18.5)
-                    return {
-                      value: imc.toFixed(1),
-                      sub: "(Bajo peso: <18.5)",
-                      color: "var(--blue)",
-                    };
-                  if (imc < 25)
-                    return {
-                      value: imc.toFixed(1),
-                      sub: "(Normal: 18.5–25)",
-                      color: "var(--green)",
-                    };
-                  if (imc < 30)
-                    return {
-                      value: imc.toFixed(1),
-                      sub: "(Sobrepeso: 25–30)",
-                      color: "var(--yellow)",
-                    };
-                  return {
-                    value: imc.toFixed(1),
-                    sub: "(Obesidad: 30+)",
-                    color: "var(--red)",
-                  };
-                })()}
-              />
-            )}
-            {profile.age && <Stat label="Edad" value={`${profile.age} años`} />}
-            {sexLabel(profile.sex) && (
-              <Stat label="Sexo" value={sexLabel(profile.sex)} />
-            )}
-            {profile.country && (
-              <Stat label="País" value={countryLabel(profile.country)} />
-            )}
-            {profile.tdee && <Stat label="TDEE" value={`${profile.tdee} kcal`} />}
-            {profile.calories_target && (
-              <Stat
-                label="Límite p/ meta"
-                value={`${profile.calories_target} kcal`}
-                color="var(--yellow)"
-              />
-            )}
-            {profile.tdee && profile.calories_target && (
-              <Stat
-                label={
-                  profile.tdee >= profile.calories_target
-                    ? "Déficit diario"
-                    : "Superávit diario"
-                }
-                value={`${Math.abs(
-                  profile.tdee - profile.calories_target
-                )} kcal`}
-                color={
-                  profile.tdee >= profile.calories_target
-                    ? "var(--red)"
-                    : "var(--green)"
-                }
-              />
-            )}
-            {profile.activity && (
-              <Stat label="Actividad" value={activityLabel(profile.activity)} />
-            )}
-          </div>
-          <div className="diet-row">
-            <span className="stat-label">Alimentación</span>
-            <div className="diet-tags">
-              {Array.isArray(profile.diet_tags) && profile.diet_tags.length ? (
-                profile.diet_tags.map((tag) => (
-                  <span className="diet-tag" key={tag}>
-                    {dietLabel(tag)}
-                  </span>
-                ))
-              ) : (
-                <span className="muted">Sin preferencias cargadas</span>
-              )}
-            </div>
-          </div>
-        </div>
-        )}
 
       <div className="card" style={{ marginBottom: 20 }}>
         <div className="cal-head">
@@ -730,6 +611,17 @@ export default function Dashboard() {
         currentWeight={weights[0]?.weight_kg}
         onClose={() => setOnboardingOpen(false)}
         onSaved={load}
+      />
+      <ProfileModal
+        open={profileOpen}
+        profile={profile}
+        currentWeight={weights[0]?.weight_kg}
+        userId={user?.id}
+        onClose={() => setProfileOpen(false)}
+        onEdit={() => {
+          setProfileOpen(false);
+          setOnboardingOpen(true);
+        }}
       />
     </main>
   );
@@ -1150,18 +1042,6 @@ function CalChart({ days, target, tdee, windowDays }) {
           );
         })}
       </div>
-    </div>
-  );
-}
-
-function Stat({ label, value, color, sub }) {
-  return (
-    <div>
-      <div className="stat-label">{label}</div>
-      <div className="stat-value" style={color ? { color } : undefined}>
-        {value}
-      </div>
-      {sub && <div className="stat-sub">{sub}</div>}
     </div>
   );
 }
