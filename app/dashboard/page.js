@@ -19,7 +19,9 @@ import {
   sumMacros,
 } from "../../lib/health";
 import { MEAL_PLAN } from "../../lib/mealPlan";
+import { activityLabel, countryLabel, dietLabel, sexLabel } from "../../lib/profile";
 import ChatWidget from "../../components/ChatWidget";
+import Onboarding from "../../components/Onboarding";
 
 function pct(val, target) {
   return target > 0 ? Math.min(100, Math.round((val / target) * 100)) : 0;
@@ -91,6 +93,10 @@ export default function Dashboard() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
+  // Onboarding: se abre solo la primera vez (perfil sin `onboarded_at`) y
+  // después desde "✏️ Editar" en la tarjeta de perfil.
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
+  const autoOnboarding = useRef(false);
   // Cómo se muestra el chat: "side" (achica el dashboard) o "overlay" (encima).
   const [chatMode, setChatMode] = useState("side");
   const menuRef = useRef(null);
@@ -143,6 +149,22 @@ export default function Dashboard() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Otro usuario (logout/login en la misma pestaña): se resetea el wizard.
+  useEffect(() => {
+    autoOnboarding.current = false;
+    setOnboardingOpen(false);
+  }, [user?.id]);
+
+  // Primera vez: sin `onboarded_at`. "Saltar por ahora" no vuelve a abrirlo
+  // hasta el próximo login (el ref se resetea al cambiar de usuario).
+  useEffect(() => {
+    if (autoOnboarding.current || loading || !profile) return;
+    if (!profile.onboarded_at) {
+      autoOnboarding.current = true;
+      setOnboardingOpen(true);
+    }
+  }, [loading, profile]);
 
   useEffect(() => {
     setWeekDays(groupCaloriesByDay(calMeals, calWindow));
@@ -475,8 +497,16 @@ export default function Dashboard() {
 
       {profile && (
         <div className="card" style={{ marginBottom: 20 }} id="perfil">
-          <div className="section-title">
-            👤 Perfil — {profile.display_name || profile.username || ""}
+          <div className="cal-head" style={{ marginBottom: 14 }}>
+            <div className="section-title" style={{ margin: 0 }}>
+              👤 Perfil — {profile.display_name || profile.username || ""}
+            </div>
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={() => setOnboardingOpen(true)}
+            >
+              ✏️ Editar
+            </button>
           </div>
           <div className="stat-grid">
             {profile.height_cm && (
@@ -494,10 +524,14 @@ export default function Dashboard() {
             )}
             {weights[0] && profile.goal_weight_kg && (
               <Stat
-                label="Por bajar"
-                value={`${(
+                label={
+                  Number(weights[0].weight_kg) >= Number(profile.goal_weight_kg)
+                    ? "Por bajar"
+                    : "Por subir"
+                }
+                value={`${Math.abs(
                   Number(weights[0].weight_kg) - Number(profile.goal_weight_kg)
-                ).toFixed(0)} kg`}
+                ).toFixed(1)} kg`}
                 color="var(--yellow)"
               />
             )}
@@ -534,6 +568,13 @@ export default function Dashboard() {
                 })()}
               />
             )}
+            {profile.age && <Stat label="Edad" value={`${profile.age} años`} />}
+            {sexLabel(profile.sex) && (
+              <Stat label="Sexo" value={sexLabel(profile.sex)} />
+            )}
+            {profile.country && (
+              <Stat label="País" value={countryLabel(profile.country)} />
+            )}
             {profile.tdee && <Stat label="TDEE" value={`${profile.tdee} kcal`} />}
             {profile.calories_target && (
               <Stat
@@ -544,14 +585,38 @@ export default function Dashboard() {
             )}
             {profile.tdee && profile.calories_target && (
               <Stat
-                label="Déficit diario"
-                value={`${profile.tdee - profile.calories_target} kcal`}
-                color="var(--red)"
+                label={
+                  profile.tdee >= profile.calories_target
+                    ? "Déficit diario"
+                    : "Superávit diario"
+                }
+                value={`${Math.abs(
+                  profile.tdee - profile.calories_target
+                )} kcal`}
+                color={
+                  profile.tdee >= profile.calories_target
+                    ? "var(--red)"
+                    : "var(--green)"
+                }
               />
             )}
             {profile.activity && (
-              <Stat label="Actividad" value={profile.activity} />
+              <Stat label="Actividad" value={activityLabel(profile.activity)} />
             )}
+          </div>
+          <div className="diet-row">
+            <span className="stat-label">Alimentación</span>
+            <div className="diet-tags">
+              {Array.isArray(profile.diet_tags) && profile.diet_tags.length ? (
+                profile.diet_tags.map((tag) => (
+                  <span className="diet-tag" key={tag}>
+                    {dietLabel(tag)}
+                  </span>
+                ))
+              ) : (
+                <span className="muted">Sin preferencias cargadas</span>
+              )}
+            </div>
           </div>
         </div>
         )}
@@ -654,8 +719,17 @@ export default function Dashboard() {
       <ChatWidget
         targets={targets}
         userId={user?.id}
+        diets={profile?.diet_tags}
+        country={profile?.country}
         onSaved={load}
         mode={chatMode}
+      />
+      <Onboarding
+        open={onboardingOpen}
+        profile={profile}
+        currentWeight={weights[0]?.weight_kg}
+        onClose={() => setOnboardingOpen(false)}
+        onSaved={load}
       />
     </main>
   );

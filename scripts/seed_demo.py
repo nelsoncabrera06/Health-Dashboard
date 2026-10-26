@@ -116,6 +116,12 @@ req("PATCH", f"/rest/v1/profiles?id=eq.{DEMO_ID}", {
     "fat_target": 70,
     "height_cm": 178,
     "goal_weight_kg": 90,
+    "sex": "male",
+    "age": 30,
+    "diet_tags": [],
+    "country": "AR",
+    # Ya hizo el onboarding: el wizard no aparece en la cuenta demo.
+    "onboarded_at": "2026-10-16T00:00:00Z",
 })
 
 print(f"OK: {len(weights)} pesos, {len(meals)} comidas, 3 workouts + perfil")

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { getSupabase } from "../lib/supabaseClient";
 import { addMeal } from "../lib/health";
 import { validateImageFile, compressImage } from "../lib/chatPhoto";
+import { dietLabel, countryLabel } from "../lib/profile";
 
 // Límite de adjunto y compresión: ver lib/chatPhoto.js.
 const MIN_W = 320;
@@ -14,7 +15,7 @@ const maxW = () =>
   typeof window === "undefined" ? 960 : Math.round(window.innerWidth * 0.5);
 const clampW = (w) => Math.min(Math.max(w, MIN_W), Math.max(MIN_W, maxW()));
 
-export default function ChatWidget({ targets, userId, onSaved, mode = "side" }) {
+export default function ChatWidget({ targets, userId, diets, country, onSaved, mode = "side" }) {
   const [open, setOpen] = useState(false);
   const [msgs, setMsgs] = useState([
     {
@@ -133,8 +134,8 @@ export default function ChatWidget({ targets, userId, onSaved, mode = "side" }) 
     const text = input.trim();
     if ((!text && !photo) || sending) return;
     setInput("");
-    // La foto viaja en el body (el route todavía la ignora: el análisis con
-    // visión es el siguiente paso). En el hilo queda visible igual.
+    // La foto viaja como data URL comprimida y el route la manda al modelo
+    // con visión (paso 11). En el hilo queda visible igual.
     const shot = photo;
     setPhoto(null);
     const next = [...msgs, { role: "user", content: text, image: shot }];
@@ -160,6 +161,11 @@ export default function ChatWidget({ targets, userId, onSaved, mode = "side" }) 
                 fat: targets.fat,
               }
             : null,
+          diet:
+            Array.isArray(diets) && diets.length
+              ? diets.map(dietLabel)
+              : undefined,
+          country: country ? countryLabel(country) : undefined,
         }),
       });
       const out = await r.json();

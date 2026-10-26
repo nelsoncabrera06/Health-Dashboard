@@ -91,10 +91,33 @@ export async function POST(req) {
     last.content = "Describí qué ves en la foto y estimá calorías y macros.";
 
   const t = body?.targets;
-  const sys =
-    t && typeof t === "object"
-      ? `${SYSTEM}\nObjetivos diarios del usuario: ${t.calories} kcal, ${t.protein}g proteína, ${t.carbs}g carbos, ${t.fat}g grasas.`
-      : SYSTEM;
+  // Preferencias alimentarias del onboarding (llegan como labels ya legibles).
+  const diet = Array.isArray(body?.diet)
+    ? body.diet
+        .filter((d) => typeof d === "string" && d.trim())
+        .map((d) => d.trim().slice(0, 40))
+        .slice(0, 10)
+    : [];
+  const country =
+    typeof body?.country === "string" && body.country.trim()
+      ? body.country.trim().slice(0, 60)
+      : null;
+  const parts = [SYSTEM];
+  if (t && typeof t === "object")
+    parts.push(
+      `Objetivos diarios del usuario: ${t.calories} kcal, ${t.protein}g proteína, ${t.carbs}g carbos, ${t.fat}g grasas.`
+    );
+  if (country)
+    parts.push(
+      `Ubicación del usuario: ${country}. Usá comidas, porciones y costumbres típicas de ahí como referencia cuando venga al caso.`
+    );
+  if (diet.length)
+    parts.push(
+      `Restricciones alimentarias del usuario: ${diet.join(
+        ", "
+      )}. Tenelas en cuenta al estimar y al sugerir comidas.`
+    );
+  const sys = parts.join("\n");
 
   let text;
   try {
