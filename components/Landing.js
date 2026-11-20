@@ -175,7 +175,7 @@ export default function Landing() {
                     Nutrición sin planillas ni formularios
                   </span>
                   <h1>
-                    Trackea lo que comiste.
+                    Trackea tus comidas 
                     <br />
                     <span className="grad">La IA hace las cuentas.</span>
                   </h1>
