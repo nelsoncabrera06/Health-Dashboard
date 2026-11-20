@@ -19,6 +19,12 @@ concurrency:
   group: refresh-demo
   cancel-in-progress: false
 
+# GITHUB_TOKEN viene en "read" por defecto en este repo; para poder abrir el
+# issue de fallo hace falta declarar issues: write acá.
+permissions:
+  contents: read
+  issues: write
+
 jobs:
   refresh:
     runs-on: ubuntu-latest
@@ -29,9 +35,65 @@ jobs:
         with:
           python-version: "3.12"
 
+      # OJO con el pipefail: GitHub corre esto con `bash -e` y sin pipefail el
+      # exit code que queda es el de `tee` (siempre 0), así que el fallo del
+      # script se perdería y el issue nunca se abriría.
       - name: Desplazar los datos del demo
+        id: refresh
+        continue-on-error: true
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           NEXT_PUBLIC_DEMO_EMAIL: ${{ secrets.DEMO_EMAIL }}
-        run: python3 scripts/refresh_demo.py
+        run: |
+          set -o pipefail
+          python3 scripts/refresh_demo.py 2>&1 | tee /tmp/refresh-demo.log
+
+      # Si el script falla, se abre (o actualiza, si ya había uno abierto) un
+      # issue para que llegue el mail. Queda la salida del script pegada adentro,
+      # recortada a las últimas 40 líneas para que se lea cómodo.
+      - name: Avisar del fallo por issue
+        if: steps.refresh.outcome == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs')
+            let salida = '(no se pudo leer /tmp/refresh-demo.log)'
+            try {
+              salida = fs.readFileSync('/tmp/refresh-demo.log', 'utf8').trim().split('\n').slice(-40).join('\n')
+            } catch (e) { /* se deja el texto por defecto */ }
+
+            const run = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
+            const cuerpo = [
+              `La corrida del ${new Date().toISOString()} terminó con error.`,
+              '',
+              `**Log completo**: ${run}`,
+              '',
+              '```',
+              salida.slice(-4000) || '(vacío)',
+              '```',
+              '',
+              'Ojo con el caso conocido: `409 duplicate key` en `weights` significa',
+              'que se rompió el movimiento en dos fases (`unique (user_id, measured_at)`,',
+              '`supabase/migrations/001_users_and_health.sql:102`). No reintroducir.',
+            ].join('\n')
+
+            const abiertos = await github.rest.issues.listForRepo({
+              ...context.repo, state: 'open', labels: 'refresh-demo',
+            })
+            if (abiertos.data.length > 0) {
+              await github.rest.issues.createComment({
+                ...context.repo, issue_number: abiertos.data[0].number, body: cuerpo,
+              })
+            } else {
+              await github.rest.issues.create({
+                ...context.repo, title: 'Falla el refresh de los datos del demo', body: cuerpo,
+                labels: ['refresh-demo'],
+              })
+            }
+
+      - name: Marcar el job como fallido
+        if: steps.refresh.outcome == 'failure'
+        run: |
+          echo "el refresh del demo falló; ver el issue abierto"
+          exit 1
