@@ -2,6 +2,10 @@
 
 Dashboard web para trackear nutrición, ejercicio y peso corporal. Corre en el teléfono (Termux/Android) y se accede desde cualquier dispositivo en la misma red WiFi.
 
+
+![image](screenshots/landing.png)
+
+
 ## Cómo usarlo
 
 ### Registrar una comida

@@ -2,6 +2,10 @@
 
 A personal health tracking dashboard built with Python and vanilla JavaScript. Track your nutrition, workouts, and weight progress — all from a clean, dark-themed web interface.
 
+
+![image](screenshots/landing.png)
+
+
 ## Features
 
 ### 🥗 Nutrition Tab
@@ -99,11 +103,6 @@ POST /log-workout
   "timestamp": 1713600000
 }
 ```
-
-## Screenshots
-
-<!-- Add screenshot here -->
-![Nutrition Tab](screenshots/nutricion.png)
 
 ## License
 
