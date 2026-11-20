@@ -1,0 +1,35 @@
+name: Refresh demo data
+
+# Corre los datos del usuario demo para que "hoy" siempre tenga datos.
+# El script no regenera contenido: desplaza las fechas existentes (meals,
+# workouts, weights) para que el último registro caiga en el día de la corrida.
+#
+# Cada 2 días a las 09:00 UTC (06:00 en Argentina). Hasta 2 días de desfasaje
+# entre corridas; el día en curso siempre queda con datos porque el script
+# alinea la fecha más nueva a "hoy" cuando corre.
+on:
+  schedule:
+    - cron: "0 4 */2 * *"
+  workflow_dispatch: # permite dispararlo a mano desde la pestaña Actions
+
+# Si una corrida se solapa con otra, se encolan en vez de pisarse.
+concurrency:
+  group: refresh-demo
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Desplazar los datos del demo
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NEXT_PUBLIC_DEMO_EMAIL: ${{ secrets.DEMO_EMAIL }}
+        run: python3 scripts/refresh_demo.py
