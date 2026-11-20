@@ -1,12 +1,14 @@
 name: Refresh demo data
 
-# Corre los datos del usuario demo para que "hoy" siempre tenga datos.
+# Mantiene actualizados los datos del usuario demo.
 # El script no regenera contenido: desplaza las fechas existentes (meals,
-# workouts, weights) para que el último registro caiga en el día de la corrida.
+# workouts, weights) para que el último registro caiga en el DÍA ANTERIOR a la
+# corrida. El día de hoy queda a propósito vacío (criterio de Nelson, 20-nov):
+# la demo busca que el visitante entre y pruebe el chat registrando una comida
+# de hoy, no mostrarle un día ya cargado.
 #
-# Cada 2 días a las 09:00 UTC (06:00 en Argentina). Hasta 2 días de desfasaje
-# entre corridas; el día en curso siempre queda con datos porque el script
-# alinea la fecha más nueva a "hoy" cuando corre.
+# Cada 2 días a las 04:00 UTC (01:00 en Argentina; bien temprano porque los
+# cron de Actions se atrasan). Hasta 2 días de desfasaje entre corridas.
 on:
   schedule:
     - cron: "0 4 */2 * *"
