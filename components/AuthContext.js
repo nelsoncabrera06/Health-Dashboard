@@ -12,6 +12,12 @@ import {
 
 const AuthContext = createContext(null);
 
+// Cuenta demo pública (ver .env.example). Si no está configurada,
+// la landing cae en el login normal.
+const DEMO_EMAIL = process.env.NEXT_PUBLIC_DEMO_EMAIL;
+const DEMO_PASSWORD = process.env.NEXT_PUBLIC_DEMO_PASSWORD;
+const CAN_DEMO = Boolean(DEMO_EMAIL && DEMO_PASSWORD);
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [ready, setReady] = useState(false);
@@ -51,6 +57,11 @@ export function AuthProvider({ children }) {
 
   const signInWithGoogle = () => authSignInWithGoogle();
 
+  const signInDemo = async () => {
+    if (!CAN_DEMO) throw new Error("La demo no está configurada.");
+    return signIn({ identifier: DEMO_EMAIL, password: DEMO_PASSWORD }, "login");
+  };
+
   const signOut = async () => {
     await getSupabase().auth.signOut();
     setUser(null);
@@ -69,7 +80,7 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, ready, signIn, signInWithGoogle, signOut, refresh, updatePrefs }}
+      value={{ user, ready, signIn, signInWithGoogle, signInDemo, canDemo: CAN_DEMO, signOut, refresh, updatePrefs }}
     >
       {children}
     </AuthContext.Provider>

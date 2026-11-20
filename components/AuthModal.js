@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "./AuthContext";
@@ -28,8 +28,8 @@ function GoogleIcon() {
   );
 }
 
-export default function AuthModal({ open, onClose }) {
-  const { signIn, signInWithGoogle } = useAuth();
+export default function AuthModal({ open, onClose, initialMode = "login" }) {
+  const { signIn, signInWithGoogle, signInDemo, canDemo } = useAuth();
   const router = useRouter();
   const [mode, setMode] = useState("login");
   const [username, setUsername] = useState("");
@@ -39,9 +39,12 @@ export default function AuthModal({ open, onClose }) {
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  // Cuenta demo pública (ver .env.example). Solo se muestra si está configurada.
-  const demoEmail = process.env.NEXT_PUBLIC_DEMO_EMAIL;
-  const demoPassword = process.env.NEXT_PUBLIC_DEMO_PASSWORD;
+
+  // Cada apertura arranca en la pestaña que pidió quien lo abrió
+  // (ej. "Empezar gratis" → Registrarme).
+  useEffect(() => {
+    if (open) setMode(initialMode);
+  }, [open, initialMode]);
 
   if (!open) return null;
 
@@ -75,7 +78,7 @@ export default function AuthModal({ open, onClose }) {
     setError("");
     setBusy(true);
     try {
-      await signIn({ identifier: demoEmail, password: demoPassword }, "login");
+      await signInDemo();
       close();
       router.push("/dashboard");
     } catch (err) {
@@ -120,7 +123,7 @@ export default function AuthModal({ open, onClose }) {
         <h2 className="auth-title">
           {mode === "login" ? "Iniciar sesión" : "Crear cuenta"}
         </h2>
-        {demoEmail && demoPassword && (
+        {canDemo && (
           <>
             <button
               type="button"
