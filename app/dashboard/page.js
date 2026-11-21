@@ -426,82 +426,6 @@ export default function Dashboard() {
         )}
       </div>
 
-      <div className="grid-bottom">
-        <div className="card">
-          <div className="section-title">🍽️ Últimas comidas registradas</div>
-          {loading && <p className="muted">Cargando…</p>}
-          {!loading && !recent.length && (
-            <div className="empty-state">Sin comidas registradas</div>
-          )}
-          {!loading &&
-            recent.map((m) => (
-              <div className="meal-row" key={m.id}>
-                <div className="meal-time">{fmtEatenAt(m.eaten_at)}</div>
-                <div className="meal-name">{m.meal}</div>
-                <div className="meal-cal">{Math.round(m.calories)} kcal</div>
-                <button
-                  className="meal-del"
-                  onClick={() => handleDelete(m.id)}
-                  title="Borrar"
-                >
-                  ×
-                </button>
-              </div>
-            ))}
-        </div>
-
-        <div className="card">
-          <div className="section-title">⚡ Ejercicio de hoy</div>
-          {loading && <p className="muted">Cargando…</p>}
-          {!loading && !workouts.length && (
-            <div className="empty-state">Sin entrenamientos hoy</div>
-          )}
-          {!loading &&
-            workouts.map((w) => (
-              <div className="meal-row" key={w.id}>
-                <div className="meal-name">
-                  💪 {w.type}
-                  <div className="muted">
-                    ⏱ {w.duration_min} min
-                    {w.notes ? ` · ${w.notes}` : ""}
-                  </div>
-                </div>
-                <div className="meal-cal">
-                  -{Math.round(w.calories_burned)} kcal
-                </div>
-              </div>
-            ))}
-          {!loading && !!workouts.length && targets && (
-            <>
-              <div className="section-title" style={{ marginTop: 16 }}>
-                ⚖️ Balance neto del día
-              </div>
-              <div className="net-big">
-                {Math.round(
-                  totals.calories -
-                    workouts.reduce(
-                      (s, w) => s + (Number(w.calories_burned) || 0),
-                      0
-                    )
-                )}{" "}
-                kcal
-              </div>
-              <div className="muted">
-                🍽️ {Math.round(totals.calories)} consumidas · 🔥{" "}
-                {Math.round(
-                  workouts.reduce(
-                    (s, w) => s + (Number(w.calories_burned) || 0),
-                    0
-                  )
-                )}{" "}
-                quemadas · 🎯 {targets.calories} target
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-
-
       <div className="card" style={{ marginBottom: 20 }}>
         <div className="cal-head">
           <div className="section-title" style={{ margin: 0 }}>
@@ -594,6 +518,81 @@ export default function Dashboard() {
               />
             </>
           )}
+      </div>
+
+      <div className="grid-bottom">
+        <div className="card">
+          <div className="section-title">🍽️ Últimas comidas registradas</div>
+          {loading && <p className="muted">Cargando…</p>}
+          {!loading && !recent.length && (
+            <div className="empty-state">Sin comidas registradas</div>
+          )}
+          {!loading &&
+            recent.map((m) => (
+              <div className="meal-row" key={m.id}>
+                <div className="meal-time">{fmtEatenAt(m.eaten_at)}</div>
+                <div className="meal-name">{m.meal}</div>
+                <div className="meal-cal">{Math.round(m.calories)} kcal</div>
+                <button
+                  className="meal-del"
+                  onClick={() => handleDelete(m.id)}
+                  title="Borrar"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+        </div>
+
+        <div className="card">
+          <div className="section-title">⚡ Ejercicio de hoy</div>
+          {loading && <p className="muted">Cargando…</p>}
+          {!loading && !workouts.length && (
+            <div className="empty-state">Sin entrenamientos hoy</div>
+          )}
+          {!loading &&
+            workouts.map((w) => (
+              <div className="meal-row" key={w.id}>
+                <div className="meal-name">
+                  💪 {w.type}
+                  <div className="muted">
+                    ⏱ {w.duration_min} min
+                    {w.notes ? ` · ${w.notes}` : ""}
+                  </div>
+                </div>
+                <div className="meal-cal">
+                  -{Math.round(w.calories_burned)} kcal
+                </div>
+              </div>
+            ))}
+          {!loading && !!workouts.length && targets && (
+            <>
+              <div className="section-title" style={{ marginTop: 16 }}>
+                ⚖️ Balance neto del día
+              </div>
+              <div className="net-big">
+                {Math.round(
+                  totals.calories -
+                    workouts.reduce(
+                      (s, w) => s + (Number(w.calories_burned) || 0),
+                      0
+                    )
+                )}{" "}
+                kcal
+              </div>
+              <div className="muted">
+                🍽️ {Math.round(totals.calories)} consumidas · 🔥{" "}
+                {Math.round(
+                  workouts.reduce(
+                    (s, w) => s + (Number(w.calories_burned) || 0),
+                    0
+                  )
+                )}{" "}
+                quemadas · 🎯 {targets.calories} target
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       <MealPlan />
