@@ -166,15 +166,26 @@ def main():
     # anterior falló a mitad de camino, la tabla que quedó atrás se vuelve a
     # alinear sola en la próxima corrida en vez de arrastrar el desfasaje para
     # siempre. `weights.measured_at` es date (no timestamp), de ahí el [:10].
-    target = date.today() - timedelta(days=1)
+    #
+    # Todo se compara en hora de Buenos Aires, no en la del server ni en UTC: la
+    # API devuelve los timestamps en UTC, y una cena de 21:00 -03 cae al día
+    # siguiente en UTC. Comparando en UTC el script corría la data un día de más
+    # y quedaban DOS días vacíos en el gráfico en vez de uno.
+    target = datetime.now(TZ_OFFSET).date() - timedelta(days=1)
 
     def table_offset(dates):
         """Días a correr para que la fecha máxima de la tabla caiga en ayer."""
         return (target - max(dates)).days if dates else 0
 
-    meal_dates = [parse_ts(m["eaten_at"]).date() for m in meals if m.get("eaten_at")]
+    meal_dates = [
+        parse_ts(m["eaten_at"]).astimezone(TZ_OFFSET).date()
+        for m in meals
+        if m.get("eaten_at")
+    ]
     workout_dates = [
-        parse_ts(w["started_at"]).date() for w in workouts if w.get("started_at")
+        parse_ts(w["started_at"]).astimezone(TZ_OFFSET).date()
+        for w in workouts
+        if w.get("started_at")
     ]
     weight_dates = [
         date.fromisoformat(str(w["measured_at"])[:10])

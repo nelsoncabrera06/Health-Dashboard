@@ -1,4 +1,7 @@
-# Seed de la cuenta demo (demo@health.local) con datos de ejemplo.
+# Seed MÍNIMO de la cuenta demo (demo@health.local): 7 días de comidas.
+# OJO: quedó como referencia histórica. El dataset vigente del demo es
+# supabase/migrations/005_demo_seed.sql (30 días de comidas, 25 pesajes y 12
+# entrenamientos). Correr este script pisa ese dataset y lo deja en 7 días.
 # Uso: python3 scripts/seed_demo.py
 # Idempotente: borra las filas previas del demo y las regenera.
 import datetime as dt
