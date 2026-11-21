@@ -287,6 +287,7 @@ export default function Dashboard() {
                 >
                   Mis datos
                 </button>
+                <Link href="/connections">Conexiones</Link>
                 <div className="user-menu-sep" />
                 <div className="menu-label">Chat</div>
                 <div className="seg" role="group" aria-label="Cómo se muestra el chat">

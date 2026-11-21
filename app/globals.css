@@ -671,3 +671,133 @@ body.chat-resizing { user-select: none; transition: none; }
   line-height: 1.45;
 }
 .profile-danger-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ── Conexiones: API keys para agentes (/connections) ── */
+.conn { width: 100%; max-width: 900px; margin: 0 auto; }
+.conn-intro {
+  font-size: 13px; color: var(--muted); line-height: 1.6;
+  margin-bottom: 20px;
+}
+.conn-error { margin-bottom: 16px; }
+.conn-section { margin-bottom: 20px; }
+.conn-section-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap; margin-bottom: 16px;
+}
+.conn-h2 { font-size: 17px; font-weight: 700; }
+.conn-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.conn-empty {
+  font-size: 13px; color: var(--muted); padding: 18px 0 6px; text-align: center;
+}
+.conn-foot { font-size: 12px; line-height: 1.6; padding-bottom: 24px; }
+.conn-h2 + .conn-sub { margin-top: 4px; }
+
+/* Key recién creada: el único lugar donde el token es visible. */
+.key-new {
+  border-color: rgba(34, 197, 94, .5);
+  background: linear-gradient(180deg, rgba(34, 197, 94, .10), transparent 70%), var(--card);
+  margin-bottom: 20px;
+}
+.key-new-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+}
+.key-new-title { font-weight: 700; font-size: 15px; }
+.key-new-warn { font-size: 12px; color: var(--yellow); margin: 8px 0 12px; line-height: 1.5; }
+.key-new-example { margin-top: 14px; }
+.key-new-label {
+  font-size: 11px; text-transform: uppercase; letter-spacing: .08em;
+  color: var(--muted); margin-bottom: 8px;
+}
+.key-token {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 9px; padding: 8px 8px 8px 12px;
+}
+.key-token code {
+  flex: 1; font-size: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--teal); overflow-x: auto; white-space: nowrap;
+  scrollbar-width: thin;
+}
+.key-token .btn { flex: 0 0 auto; }
+
+/* Formulario de creación */
+.key-form {
+  border: 1px solid var(--border); border-radius: 12px;
+  background: rgba(0, 0, 0, .18); padding: 18px; margin-bottom: 18px;
+}
+.key-form .onb-grid { margin-top: 0; }
+.key-form input {
+  width: 100%; background: var(--bg); border: 1px solid var(--border);
+  color: var(--text); border-radius: 9px; padding: 10px 12px;
+  font-size: 14px; font-family: inherit; font-weight: 500;
+}
+.key-form input:focus { outline: none; border-color: var(--blue); }
+.key-form-foot {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap; margin-top: 16px;
+}
+.key-form-foot .muted { font-size: 12px; }
+
+/* Scopes: se eligen con tarjetas, no con checkboxes nativos. */
+.scope-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.scope-item {
+  display: flex; align-items: flex-start; gap: 10px; text-align: left;
+  background: var(--bg); border: 1px solid var(--border); color: var(--text);
+  border-radius: 10px; padding: 11px 12px; cursor: pointer;
+  font-family: inherit; font-size: 13px;
+}
+.scope-item:hover { border-color: var(--blue); }
+.scope-item.active { border-color: var(--blue); background: rgba(59, 130, 246, .14); }
+.scope-item.locked { cursor: default; opacity: .85; }
+.scope-item.locked:hover { border-color: var(--border); }
+.scope-check {
+  width: 16px; height: 16px; border-radius: 5px; flex: 0 0 auto;
+  border: 1px solid var(--border); display: grid; place-items: center;
+  font-size: 11px; line-height: 1; margin-top: 1px; color: #fff;
+}
+.scope-item.active .scope-check { background: var(--blue); border-color: var(--blue); }
+.scope-text { display: flex; flex-direction: column; gap: 3px; }
+.scope-hint { font-size: 11px; color: var(--muted); line-height: 1.4; }
+
+/* Lista de keys */
+.key-list { display: flex; flex-direction: column; gap: 10px; }
+.key-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 11px; padding: 14px;
+}
+.key-row.off { opacity: .55; }
+.key-main { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.key-name {
+  font-weight: 600; font-size: 14px;
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.key-badge {
+  font-size: 10px; text-transform: uppercase; letter-spacing: .06em;
+  padding: 2px 7px; border-radius: 20px; font-weight: 700;
+}
+.key-badge.off {
+  background: rgba(239, 68, 68, .14); color: var(--red);
+  border: 1px solid rgba(239, 68, 68, .4);
+}
+.key-meta {
+  font-size: 12px; color: var(--muted);
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+}
+.key-meta code { color: var(--text); font-size: 12px; }
+.key-dot { opacity: .5; }
+.key-scopes { margin-top: 2px; }
+.key-actions {
+  display: flex; flex-direction: column; align-items: flex-end; gap: 6px;
+  flex: 0 0 auto;
+}
+.key-confirm { font-size: 12px; color: var(--muted); }
+.key-hint { font-size: 12px; }
+.profile-delete-link.danger { color: var(--red); }
+
+@media (max-width: 620px) {
+  .scope-list { grid-template-columns: 1fr; }
+  .key-row { align-items: flex-start; }
+  .key-actions { align-items: flex-end; }
+}
