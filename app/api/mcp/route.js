@@ -203,7 +203,7 @@ function buildServer(auth) {
     {
       title: "Registrar una comida",
       description:
-        "Registra una comida con los macros ya estimados por vos (calorías en kcal, macros en gramos). No inventes valores: si no podés estimar con confianza, preguntá al usuario. Confirmá con el usuario antes de registrar. Devuelve la fila creada y el resumen del día recalculado.",
+        "Registra una comida con los macros ya estimados por vos (calorías en kcal, macros en gramos). No inventes valores: si no podés estimar con confianza, preguntá al usuario. Confirmá con el usuario antes de registrar. Mandá SIEMPRE un client_ref único por comida (ej. 'milanesa-pure-2026-11-22-1'): si la llamada se reintenta con el mismo valor, no se duplica. Devuelve la fila creada y el resumen del día recalculado.",
       inputSchema: {
         name: z.string().min(1).max(120).describe("Qué comió, en texto libre (ej. 'Milanesa con puré')."),
         calories: z.number().min(0).max(10000).describe("Calorías totales de la comida (kcal)."),
@@ -216,7 +216,7 @@ function buildServer(auth) {
           .max(64)
           .optional()
           .describe(
-            "Identificador propio para reintentos seguros: si repetís la llamada con el mismo valor, no se duplica la comida."
+            "Mandalo siempre. Identificador único de ESTA comida (ej. 'milanesa-pure-2026-11-22-1'): si el request se reintenta con el mismo valor, el servidor devuelve la comida que ya existe marcada como duplicated en vez de crear otra."
           ),
       },
     },
@@ -235,7 +235,7 @@ function buildServer(auth) {
         duplicated,
         day,
         note: duplicated
-          ? "Esa comida ya estaba registrada (mismo client_ref): no se duplicó."
+          ? "Esa comida ya estaba registrada (mismo client_ref): no se duplicó. Es la misma fila."
           : "Comida registrada.",
       });
     }
