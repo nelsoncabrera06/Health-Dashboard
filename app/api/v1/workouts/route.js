@@ -7,14 +7,9 @@ import {
   listWorkouts,
 } from "../../../../lib/api/data";
 import { apiError, apiJson, withApi } from "../../../../lib/api/log";
+import { parseWorkout } from "../../../../lib/api/payloads";
 import { readRange } from "../../../../lib/api/query";
-import {
-  collect,
-  num,
-  readBody,
-  text,
-  timestamp,
-} from "../../../../lib/api/validate";
+import { readBody } from "../../../../lib/api/validate";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -46,25 +41,8 @@ export async function POST(req) {
   return withApi(req, { tool: "log_workout", scope: "workouts:write" }, async (auth) => {
     const parsed = await readBody(req);
     if (!parsed.ok) return apiError(parsed.status, parsed.code, parsed.message);
-    const body = parsed.body;
 
-    const checked = collect({
-      type: text(body.type, { field: "type", max: 60 }),
-      durationMin: num(body.duration_min, {
-        field: "duration_min",
-        min: 0,
-        max: 1440, // un día entero: más que eso es un error de unidad
-        required: false,
-      }),
-      caloriesBurned: num(body.calories_burned, {
-        field: "calories_burned",
-        min: 0,
-        max: 10000,
-        required: false,
-      }),
-      notes: text(body.notes, { field: "notes", max: 500, required: false }),
-      startedAt: timestamp(body.started_at, { field: "started_at" }),
-    });
+    const checked = parseWorkout(parsed.body);
     if (!checked.ok) return apiError(checked.status, checked.code, checked.message);
 
     const workout = await addWorkout(auth.userId, checked.values);

@@ -11,8 +11,9 @@ import {
   upsertWeight,
 } from "../../../../lib/api/data";
 import { apiError, apiJson, withApi } from "../../../../lib/api/log";
+import { parseWeight } from "../../../../lib/api/payloads";
 import { readRange } from "../../../../lib/api/query";
-import { collect, dateOnly, num, readBody } from "../../../../lib/api/validate";
+import { readBody } from "../../../../lib/api/validate";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -43,12 +44,8 @@ export async function POST(req) {
   return withApi(req, { tool: "log_weight", scope: "weights:write" }, async (auth) => {
     const parsed = await readBody(req);
     if (!parsed.ok) return apiError(parsed.status, parsed.code, parsed.message);
-    const body = parsed.body;
 
-    const checked = collect({
-      weightKg: num(body.weight_kg, { field: "weight_kg", min: 20, max: 400 }),
-      measuredAt: dateOnly(body.measured_at, { field: "measured_at" }),
-    });
+    const checked = parseWeight(parsed.body);
     if (!checked.ok) return apiError(checked.status, checked.code, checked.message);
 
     // Sin fecha, el "hoy" es el del usuario, no el del servidor (Vercel corre en UTC).
