@@ -93,6 +93,9 @@ export default function Dashboard() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
+  // Confirmación de borrado de una comida (no se puede deshacer).
+  const [confirmMeal, setConfirmMeal] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   // Onboarding: se abre solo la primera vez (perfil sin `onboarded_at`) y
   // después desde "✏️ Editar" en la ventana "Mis datos".
   const [onboardingOpen, setOnboardingOpen] = useState(false);
@@ -219,6 +222,27 @@ export default function Dashboard() {
       await load();
     } catch (e) {
       setFormError(e.message || "No se pudo borrar.");
+    }
+  };
+
+  // Borrar una comida no se deshace: primero se confirma en una caja chica.
+  useEffect(() => {
+    if (!confirmMeal) return;
+    const esc = (e) => {
+      if (e.key === "Escape" && !deleting) setConfirmMeal(null);
+    };
+    document.addEventListener("keydown", esc);
+    return () => document.removeEventListener("keydown", esc);
+  }, [confirmMeal, deleting]);
+
+  const confirmDelete = async () => {
+    if (!confirmMeal) return;
+    setDeleting(true);
+    try {
+      await handleDelete(confirmMeal.id);
+      setConfirmMeal(null);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -536,8 +560,8 @@ export default function Dashboard() {
                 <div className="meal-cal">{Math.round(m.calories)} kcal</div>
                 <button
                   className="meal-del"
-                  onClick={() => handleDelete(m.id)}
-                  title="Borrar"
+                  onClick={() => setConfirmMeal(m)}
+                  title="Eliminar esta comida"
                 >
                   ×
                 </button>
@@ -623,6 +647,70 @@ export default function Dashboard() {
           setOnboardingOpen(true);
         }}
       />
+
+      {/* Confirmación de borrado: caja chica, no un modal grande. */}
+      {confirmMeal && (
+        <div
+          className="onb-overlay"
+          onClick={() => !deleting && setConfirmMeal(null)}
+        >
+          <div
+            className="onb-card confirm-card"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="confirm-del-title"
+          >
+            <div className="onb-head">
+              <div>
+                <div className="onb-title" id="confirm-del-title">
+                  ¿Eliminar esta comida?
+                </div>
+                <div className="onb-sub">No se puede deshacer.</div>
+              </div>
+              <button
+                className="onb-x"
+                onClick={() => !deleting && setConfirmMeal(null)}
+                aria-label="Cerrar"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="confirm-body">
+              <div className="confirm-row">
+                <span>Fecha</span>
+                <b>{fmtEatenAt(confirmMeal.eaten_at)}</b>
+              </div>
+              <div className="confirm-row">
+                <span>Comida</span>
+                <b>{confirmMeal.meal}</b>
+              </div>
+              <div className="confirm-row">
+                <span>Calorías</span>
+                <b>{Math.round(confirmMeal.calories)} kcal</b>
+              </div>
+            </div>
+
+            <div className="confirm-actions">
+              <button
+                className="btn btn-secondary"
+                onClick={() => setConfirmMeal(null)}
+                disabled={deleting}
+              >
+                Cancelar
+              </button>
+              <button
+                className="btn btn-danger"
+                onClick={confirmDelete}
+                disabled={deleting}
+              >
+                {deleting ? "Eliminando…" : "Eliminar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

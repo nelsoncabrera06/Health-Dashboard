@@ -142,6 +142,22 @@ a { color: var(--blue); }
   cursor: pointer; font-size: 15px; line-height: 1; flex-shrink: 0;
 }
 .meal-del:hover { color: var(--red); border-color: var(--red); }
+
+/* Confirmación de borrado de una comida: caja chica, no modal grande. */
+.confirm-card { width: min(400px, 100%); }
+.confirm-body { padding: 0 24px 6px; }
+.confirm-row {
+  display: flex; gap: 12px; justify-content: space-between;
+  padding: 9px 0; border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.confirm-row:last-child { border-bottom: none; }
+.confirm-row span { color: var(--muted); flex: 0 0 auto; }
+.confirm-row b { text-align: right; font-weight: 600; }
+.confirm-actions {
+  display: flex; justify-content: flex-end; gap: 10px;
+  padding: 16px 24px 22px;
+}
 .empty-state {
   text-align: center;
   color: var(--muted);
