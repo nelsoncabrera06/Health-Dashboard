@@ -257,11 +257,24 @@ export default function ConnectionsPage() {
       </header>
 
       <p className="conn-intro">
-        Una API key es una contraseña para conectar con otro programa o AI. 
+        Una API key es una contraseña para conectar con otro programa o AI.{" "}
         Se pega en la configuración de un agente (Claude Code, OpenClaw, Hermes o cualquier cliente HTTP)
         y le permite leer y registrar tus datos sin pasar por la web. El token se muestra
         una sola vez: guardalo donde lo vayas a usar.
       </p>
+
+      <div className="conn-docs">
+        <div className="conn-docs-text">
+          <b>Developers docs</b>
+          <p>
+            Documentación relacionada a la API y el MCP: qué puede hacer un agente, las tools
+            disponibles, los permisos y ejemplos para conectarlo.
+          </p>
+        </div>
+        <Link href="/developers" className="btn btn-secondary">
+          Ver la documentación →
+        </Link>
+      </div>
 
       {/* El token crudo solo existe acá y hasta que se recargue la página. */}
       {newKey && (

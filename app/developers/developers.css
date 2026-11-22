@@ -1,0 +1,417 @@
+/* ═══════════════════════════════════════════════════════════
+   /developers — documentación pública de la API y el MCP.
+   Todo prefijado con .dev para no tocar el dashboard ni el landing.
+   ═══════════════════════════════════════════════════════════ */
+
+/* El body global tiene padding 20px: esta página va a sangre. */
+body:has(.dev) {
+  padding: 0;
+}
+
+.dev {
+  min-height: 100vh;
+  background:
+    radial-gradient(900px 500px at 15% -10%, rgba(59, 130, 246, 0.16), transparent 70%),
+    radial-gradient(760px 460px at 90% 0%, rgba(168, 85, 247, 0.12), transparent 70%),
+    var(--bg);
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.65;
+}
+.dev-wrap {
+  width: min(1040px, 100% - 40px);
+  margin: 0 auto;
+}
+.dev code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.9em;
+  color: var(--teal);
+  background: rgba(148, 163, 184, 0.10);
+  padding: 1px 5px;
+  border-radius: 5px;
+}
+.dev h1,
+.dev h2,
+.dev h3 {
+  color: #f8fafc;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+/* ── Header ── */
+.dev-head {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: rgba(13, 15, 20, 0.82);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border);
+}
+.dev-head-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  height: 64px;
+}
+.dev-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-weight: 800;
+  font-size: 15px;
+  letter-spacing: -0.02em;
+  color: #f8fafc;
+  text-decoration: none;
+  white-space: nowrap;
+}
+/* "Health" blanco, "Dashboard" en teal (el último span del brand). */
+.dev-brand > span:last-child {
+  color: var(--teal);
+}
+.dev-brand-mark svg {
+  width: 22px;
+  height: 22px;
+  display: block;
+}
+.dev-nav {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  font-size: 13.5px;
+}
+.dev-nav a {
+  color: #94a3b8;
+  text-decoration: none;
+}
+.dev-nav a:hover {
+  color: var(--text);
+}
+
+/* ── Botones ── */
+.dev-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 9px;
+  padding: 9px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  border: 1px solid transparent;
+  transition: background 0.18s, border-color 0.18s, color 0.18s;
+  white-space: nowrap;
+}
+.dev-btn-primary {
+  background: var(--blue);
+  color: #fff;
+}
+.dev-btn-primary:hover {
+  background: #2563eb;
+}
+.dev-btn-ghost {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: var(--border);
+  color: var(--text);
+}
+.dev-btn-ghost:hover {
+  border-color: #3b4a6b;
+  background: rgba(255, 255, 255, 0.07);
+}
+.dev-btn-lg {
+  padding: 12px 22px;
+  font-size: 15px;
+}
+
+/* ── Hero ── */
+.dev-hero {
+  padding: 76px 0 56px;
+}
+.dev-badge {
+  display: inline-block;
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  color: #94a3b8;
+  font-size: 12px;
+  margin-bottom: 22px;
+}
+.dev-hero h1 {
+  font-size: clamp(32px, 5vw, 52px);
+  font-weight: 800;
+  margin-bottom: 20px;
+}
+.dev-grad {
+  background: linear-gradient(100deg, #60a5fa, #5eead4 55%, #a78bfa);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.dev-lead {
+  max-width: 720px;
+  color: #94a3b8;
+  font-size: 16px;
+}
+.dev-lead b {
+  color: var(--text);
+}
+.dev-cta {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 28px;
+}
+.dev-fine {
+  margin-top: 16px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+/* ── Secciones ── */
+.dev-section {
+  padding: 20px 0 44px;
+}
+.dev-h2 {
+  font-size: 26px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+.dev-sub {
+  color: #94a3b8;
+  max-width: 760px;
+  margin-bottom: 22px;
+}
+.dev-note {
+  margin-top: 16px;
+  font-size: 13px;
+  color: var(--muted);
+  border-left: 2px solid var(--border);
+  padding-left: 12px;
+}
+
+/* ── Cards ── */
+.dev-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(215px, 1fr));
+  gap: 14px;
+}
+.dev-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+}
+.dev-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px;
+}
+.dev-card h3 {
+  font-size: 14.5px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.dev-card p {
+  font-size: 13px;
+  color: #94a3b8;
+}
+.dev-icon {
+  display: inline-block;
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+
+/* ── Tablas ── */
+.dev-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--card);
+}
+.dev-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+  min-width: 560px;
+}
+.dev-table th {
+  text-align: left;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--muted);
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.dev-table td {
+  padding: 11px 16px;
+  border-bottom: 1px solid rgba(37, 45, 66, 0.6);
+  vertical-align: top;
+  color: #cbd5e1;
+}
+.dev-table tr:last-child td {
+  border-bottom: none;
+}
+.dev-table code {
+  background: none;
+  padding: 0;
+  color: #93c5fd;
+}
+.dev-scope {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px;
+  color: #5eead4;
+  background: rgba(20, 184, 166, 0.10);
+  border: 1px solid rgba(20, 184, 166, 0.25);
+  padding: 2px 7px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.dev-method {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 5px;
+}
+.dev-method.get {
+  color: #93c5fd;
+  background: rgba(59, 130, 246, 0.14);
+}
+.dev-method.post {
+  color: #86efac;
+  background: rgba(34, 197, 94, 0.14);
+}
+
+/* ── Pasos ── */
+.dev-steps {
+  margin: 0 0 24px 18px;
+  display: grid;
+  gap: 10px;
+  color: #94a3b8;
+  font-size: 14px;
+}
+.dev-steps b {
+  color: var(--text);
+}
+
+/* ── Snippets ── */
+.dev-snippets {
+  display: grid;
+  gap: 14px;
+}
+.dev-code {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #0a0c11;
+  overflow: hidden;
+}
+.dev-code-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--muted);
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.02);
+}
+.dev-code-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px;
+}
+.dev-code pre {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+}
+.dev-code code {
+  background: none;
+  padding: 0;
+  color: #a5f3fc;
+  font-size: 12.5px;
+  line-height: 1.6;
+  white-space: pre;
+}
+.dev-copy {
+  flex: 0 0 auto;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  color: #94a3b8;
+  border-radius: 7px;
+  padding: 5px 11px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.dev-copy:hover {
+  color: var(--text);
+  border-color: #3b4a6b;
+}
+
+/* ── Aviso ── */
+.dev-warning {
+  border: 1px solid rgba(234, 179, 8, 0.35);
+  background: rgba(234, 179, 8, 0.07);
+  border-radius: 14px;
+  padding: 20px;
+}
+.dev-warning h3 {
+  font-size: 15px;
+  color: #fde68a;
+  margin-bottom: 8px;
+}
+.dev-warning p {
+  font-size: 13.5px;
+  color: #cbd5e1;
+}
+
+/* ── CTA final y footer ── */
+.dev-final {
+  padding: 44px 0 64px;
+  text-align: center;
+}
+.dev-final h2 {
+  font-size: 30px;
+  font-weight: 800;
+  margin-bottom: 10px;
+}
+.dev-final p {
+  color: #94a3b8;
+  max-width: 520px;
+  margin: 0 auto;
+}
+.dev-final .dev-cta {
+  justify-content: center;
+}
+.dev-foot {
+  border-top: 1px solid var(--border);
+  padding: 22px 0 32px;
+}
+.dev-foot-inner {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+@media (max-width: 720px) {
+  .dev-nav a:not(.dev-btn) {
+    display: none;
+  }
+  .dev-head-inner .dev-btn {
+    padding: 7px 13px;
+    font-size: 13px;
+  }
+  .dev-hero {
+    padding: 48px 0 36px;
+  }
+  .dev-h2 {
+    font-size: 22px;
+  }
+}

@@ -1,9 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "./AuthContext";
 import AuthModal from "./AuthModal";
+
+// Ejemplo de conexión que se muestra en la sección "Para tu agente".
+const AGENT_SNIPPET = `claude mcp add --transport http health \\
+  https://nutritiondashboard.vercel.app/api/mcp \\
+  --header "Authorization: Bearer hd_live_xxxxxxxx"`;
 
 // Landing pública para usuarios sin sesión. El CSS vive en app/landing.css
 // y está scopeado con `.landing` para no tocar el dashboard.
@@ -109,6 +115,7 @@ export default function Landing() {
               <a href="#como">Cómo funciona</a>
               <a href="#funciones">Funciones</a>
               <a href="#chat">El chat</a>
+              <a href="#agentes">Para agentes</a>
               <a href="#faq">Preguntas</a>
             </nav>
 
@@ -139,6 +146,7 @@ export default function Landing() {
             <a href="#como" onClick={closeMenu}>Cómo funciona</a>
             <a href="#funciones" onClick={closeMenu}>Funciones</a>
             <a href="#chat" onClick={closeMenu}>El chat</a>
+            <a href="#agentes" onClick={closeMenu}>Para agentes</a>
             <a href="#faq" onClick={closeMenu}>Preguntas</a>
             <button
               type="button"
@@ -791,6 +799,72 @@ export default function Landing() {
             </div>
           </section>
 
+          {/* ═══════════ PARA AGENTES ═══════════ */}
+          <section className="section" id="agentes">
+            <div className="container">
+              <div className="agents reveal">
+                <div className="agents-copy">
+                  <div className="eyebrow">Para tu agente</div>
+                  <h2 className="section-title">O que lo cargue tu IA, sin abrir la web</h2>
+                  <p className="section-sub">
+                    El dashboard también habla el idioma de los agentes. Con una API key,
+                    Claude Code, OpenClaw, Hermes o un script propio pueden leer tu día y
+                    registrar comidas, pesos y entrenamientos.
+                  </p>
+
+                  <ul className="agents-list">
+                    <li>
+                      <span className="tick">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M20 6 9 17l-5-5" />
+                        </svg>
+                      </span>
+                      <span><b>MCP:</b> ocho herramientas que el agente descubre solo.</span>
+                    </li>
+                    <li>
+                      <span className="tick">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M20 6 9 17l-5-5" />
+                        </svg>
+                      </span>
+                      <span><b>REST:</b> para scripts, cron y cualquier cliente HTTP.</span>
+                    </li>
+                    <li>
+                      <span className="tick">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M20 6 9 17l-5-5" />
+                        </svg>
+                      </span>
+                      <span><b>Permisos por key:</b> leer, o leer y registrar. Nunca borrar.</span>
+                    </li>
+                  </ul>
+
+                  <Link href="/developers" className="btn btn-primary btn-lg">
+                    Ver la documentación
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M5 12h14M13 6l6 6-6 6" />
+                    </svg>
+                  </Link>
+                </div>
+
+                <div className="agents-code" aria-label="Ejemplo de configuración del servidor MCP">
+                  <div className="agents-code-head">
+                    <span className="agents-dots" aria-hidden="true"><i /><i /><i /></span>
+                    <span>claude mcp add</span>
+                  </div>
+                  <pre>
+                    <code>{AGENT_SNIPPET}</code>
+                  </pre>
+                  <div className="agents-code-foot">
+                    <span className="agents-chip">MCP</span>
+                    <span className="agents-chip">REST</span>
+                    <span className="agents-muted">1 key = 1 usuario</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
           {/* ═══════════ FAQ ═══════════ */}
           <section className="section" id="faq">
             <div className="container">
@@ -988,6 +1062,7 @@ export default function Landing() {
                 </div>
                 <div className="foot-col">
                   <h4>Proyecto</h4>
+                  <Link href="/developers">API para agentes</Link>
                   <a
                     href="https://github.com/nelsoncabrera06/Health-Dashboard"
                     target="_blank"
