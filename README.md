@@ -32,6 +32,29 @@ A personal health tracking dashboard built with Python and vanilla JavaScript. T
 - Calculated BMR and TDEE
 - Daily calorie deficit display
 
+## API & MCP for agents
+
+The dashboard also exposes the same data the web shows — meals, weights, workouts and daily
+targets — so an agent can read it and log new entries without opening the browser.
+
+- **MCP server** (Streamable HTTP, stateless) with 8 tools, for Claude Code, OpenClaw, Hermes
+  and any MCP client.
+- **REST API** under `/api/v1/*` for scripts and `curl`.
+- **Per-user API keys** with scopes (`health:read`, `meals:write`, `weights:write`,
+  `workouts:write`) and an expiry of 90 days, 6 months or 1 year. Only the SHA-256 hash is
+  stored, and the token is shown once.
+- Free tier: 1 active key and 1,000 requests/day. Keys can read and log, **never delete**.
+- The API does **not** estimate macros: the agent sends them and the server validates and
+  stores. Accuracy depends on the client's model.
+
+Documentation:
+
+- 📖 Public docs — **https://nutritiondashboard.vercel.app/developers**
+- 📄 In this repo — **[docs/API.md](docs/API.md)**
+
+Create a key at **https://nutritiondashboard.vercel.app/api-keys**. The demo account cannot
+create keys: it is public, so a key there would be open write access to anyone.
+
 ## Tech Stack
 
 - **Backend**: Python 3 (stdlib only — no dependencies)
