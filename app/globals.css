@@ -672,7 +672,7 @@ body.chat-resizing { user-select: none; transition: none; }
 }
 .profile-danger-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
-/* ── Conexiones: API keys para agentes (/connections) ── */
+/* ── API keys para agentes (/api-keys) ── */
 .conn { width: 100%; max-width: 900px; margin: 0 auto; }
 .conn-intro {
   font-size: 13px; color: var(--muted); line-height: 1.6;
@@ -680,6 +680,45 @@ body.chat-resizing { user-select: none; transition: none; }
 }
 .conn-error { margin-bottom: 16px; }
 .conn-section { margin-bottom: 20px; }
+
+/* Cuenta demo: no puede tener keys, se explica en vez de mostrar el form. */
+.conn-demo { margin-bottom: 20px; }
+.conn-demo .conn-sub { margin-top: 8px; line-height: 1.6; }
+.conn-demo .btn { margin-top: 14px; }
+
+/* Cupo lleno: el botón sigue clickeable (para poder explicar el motivo) pero
+   se ve apagado. Un botón deshabilitado no dice nada y parece roto. */
+.btn-at-limit {
+  opacity: .6;
+  cursor: not-allowed;
+}
+.conn-limit-hint { color: var(--yellow) !important; }
+
+/* Aviso efímero (2,6 s) al intentar crear una key sin cupo. */
+.conn-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 28px;
+  transform: translateX(-50%);
+  z-index: 60;
+  max-width: min(520px, calc(100vw - 32px));
+  padding: 11px 16px;
+  border-radius: 11px;
+  border: 1px solid var(--border);
+  background: var(--card-2, #1c2133);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.45;
+  box-shadow: 0 18px 40px -12px rgba(0, 0, 0, .8);
+  animation: conn-toast-in .22s ease-out;
+}
+@keyframes conn-toast-in {
+  from { opacity: 0; transform: translate(-50%, 8px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .conn-toast { animation: none; }
+}
 .conn-section-head {
   display: flex; align-items: flex-start; justify-content: space-between;
   gap: 16px; flex-wrap: wrap; margin-bottom: 16px;

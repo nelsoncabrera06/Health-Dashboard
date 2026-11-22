@@ -2,7 +2,7 @@
 // POST /api/keys  → crea una key y devuelve el token UNA sola vez
 //
 // Solo sesión de la web (JWT). Una API key no puede crear ni revocar keys.
-// La UI vive en /connections.
+// La UI vive en /api-keys.
 import { createKey, listKeys, requireWebSession, mcpUrl } from "../../../lib/api/keyManager";
 import { apiError } from "../../../lib/api/log";
 import { limitsFor } from "../../../lib/api/tiers";
@@ -39,6 +39,7 @@ export async function GET(req) {
   return Response.json(
     {
       keys: res.keys,
+      tier: profile?.tier || "free",
       limits: limitsFor(profile?.tier),
       mcp_url: mcpUrl(req),
     },

@@ -1,11 +1,11 @@
 "use client";
 
-// /connections — gestión de API keys para agentes (paso 4 del plan de API).
+// /api-keys — gestión de API keys para agentes (paso 4 del plan de API).
 //
 // Es una página y no un modal porque los snippets de configuración son largos.
 // Requiere sesión: la web pide la lista con el access token; el token crudo de
 // una key nueva se muestra UNA sola vez y no se vuelve a pedir al servidor.
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../components/AuthContext";
@@ -46,14 +46,26 @@ function isExpired(iso) {
   return iso ? new Date(iso).getTime() < Date.now() : false;
 }
 
+// La API devuelve { error, code } (ver `apiError` en lib/api/log.js). Leer
+// `message` acá mostraba siempre el texto genérico y escondía el motivo real
+// (ej. "la cuenta demo no puede crear keys").
+function apiMessage(body, fallback) {
+  return body?.error || body?.message || fallback;
+}
+
 export default function ConnectionsPage() {
   const { user, ready, signOut } = useAuth();
   const router = useRouter();
 
   const [keys, setKeys] = useState([]);
   const [limits, setLimits] = useState(null);
+  const [tier, setTier] = useState("free");
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  // Código de error de la API. `demo_not_allowed` cambia la página entera: la
+  // cuenta demo es pública y no puede tener keys, así que no tiene sentido
+  // mostrarle el formulario.
+  const [blockedCode, setBlockedCode] = useState("");
 
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -66,6 +78,17 @@ export default function ConnectionsPage() {
   const [confirmRevoke, setConfirmRevoke] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [busyId, setBusyId] = useState(null);
+
+  // Aviso efímero. El botón de crear no se deshabilita al llegar al límite:
+  // un botón deshabilitado no explica nada y parece roto. Al clickearlo avisa.
+  const [toast, setToast] = useState("");
+  const toastTimer = useRef(null);
+  const showToast = useCallback((msg) => {
+    setToast(msg);
+    clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(""), 2600);
+  }, []);
+  useEffect(() => () => clearTimeout(toastTimer.current), []);
 
   const token = useCallback(async () => {
     const { data } = await getSupabase().auth.getSession();
@@ -83,9 +106,14 @@ export default function ConnectionsPage() {
         headers: { Authorization: `Bearer ${t}` },
       });
       const body = await res.json();
-      if (!res.ok) throw new Error(body?.message || "No se pudieron cargar las keys.");
+      if (!res.ok) {
+        setBlockedCode(body?.code || "");
+        throw new Error(apiMessage(body, "No se pudieron cargar las keys."));
+      }
+      setBlockedCode("");
       setKeys(body.keys || []);
       setLimits(body.limits || null);
+      setTier(body.tier || "free");
     } catch (err) {
       setLoadError(err.message || "No se pudieron cargar las keys.");
     } finally {
@@ -127,7 +155,7 @@ export default function ConnectionsPage() {
         body: JSON.stringify(form),
       });
       const body = await res.json();
-      if (!res.ok) throw new Error(body?.message || "No se pudo crear la key.");
+      if (!res.ok) throw new Error(apiMessage(body, "No se pudo crear la key."));
       setNewKey({ ...body.key, token: body.token });
       setForm(EMPTY_FORM);
       setFormOpen(false);
@@ -152,7 +180,7 @@ export default function ConnectionsPage() {
         headers: { Authorization: `Bearer ${t}` },
       });
       const body = await res.json();
-      if (!res.ok) throw new Error(body?.message || "No se pudo revocar la key.");
+      if (!res.ok) throw new Error(apiMessage(body, "No se pudo revocar la key."));
       setConfirmRevoke(null);
       load();
     } catch (err) {
@@ -174,7 +202,7 @@ export default function ConnectionsPage() {
         headers: { Authorization: `Bearer ${t}` },
       });
       const body = await res.json();
-      if (!res.ok) throw new Error(body?.message || "No se pudo eliminar la key.");
+      if (!res.ok) throw new Error(apiMessage(body, "No se pudo eliminar la key."));
       if (newKey?.id === key.id) setNewKey(null);
       setConfirmDelete(null);
       load();
@@ -198,6 +226,7 @@ export default function ConnectionsPage() {
 
   const active = keys.filter((k) => !k.revoked_at && !isExpired(k.expires_at));
   const inactive = keys.filter((k) => k.revoked_at || isExpired(k.expires_at));
+  const atLimit = Boolean(limits) && active.length >= limits.keys;
   const handle = user?.username || user?.displayName || "usuario";
 
   if (!ready || (loading && !keys.length)) {
@@ -214,7 +243,7 @@ export default function ConnectionsPage() {
         <Link href="/dashboard" className="brand">
           <div>
             <div className="title">Health Dashboard</div>
-            <div className="subtitle">Conexiones · API para agentes</div>
+            <div className="subtitle">API keys · API para agentes</div>
           </div>
         </Link>
         <div className="header-right">
@@ -228,10 +257,10 @@ export default function ConnectionsPage() {
       </header>
 
       <p className="conn-intro">
-        Tus API keys permiten que un agente (Claude Code, OpenClaw, Hermes o cualquier
-        cliente HTTP) lea y registre tus datos sin pasar por la web. El token se muestra
-        una sola vez: guardalo donde lo vayas a usar.{" "}
-        <Link href="/developers">Ver la documentación completa →</Link>
+        Una API key es una contraseña para conectar con otro programa o AI. 
+        Se pega en la configuración de un agente (Claude Code, OpenClaw, Hermes o cualquier cliente HTTP)
+        y le permite leer y registrar tus datos sin pasar por la web. El token se muestra
+        una sola vez: guardalo donde lo vayas a usar.
       </p>
 
       {/* El token crudo solo existe acá y hasta que se recargue la página. */}
@@ -263,12 +292,12 @@ export default function ConnectionsPage() {
           <div className="key-new-example">
             <div className="key-new-label">Probala ahora</div>
             <div className="key-token">
-              <code>{`curl -H "Authorization: Bearer ${newKey.token}" ${typeof window !== "undefined" ? window.location.origin : ""}/api/v1/ping`}</code>
+              <code>{`curl -H "Authorization: Bearer ${newKey.token}" "${typeof window !== "undefined" ? window.location.origin : ""}/api/v1/ping?pretty=1"`}</code>
               <button
                 className="btn btn-sm"
                 onClick={() =>
                   copy(
-                    `curl -H "Authorization: Bearer ${newKey.token}" ${window.location.origin}/api/v1/ping`,
+                    `curl -H "Authorization: Bearer ${newKey.token}" "${window.location.origin}/api/v1/ping?pretty=1"`,
                     "curl"
                   )
                 }
@@ -280,9 +309,26 @@ export default function ConnectionsPage() {
         </div>
       )}
 
-      {loadError && <p className="auth-error conn-error">{loadError}</p>}
+      {blockedCode === "demo_not_allowed" ? (
+        <div className="card conn-demo">
+          <h2 className="conn-h2">La cuenta demo no puede crear API keys</h2>
+          <p className="conn-sub">
+            La demo es una cuenta pública. 
+            Cree su propia cuenta para usar esta funcionalidad
+          </p>
+          <p className="conn-sub">
+            Creá tu propia cuenta con Google o email y ahí sí vas a poder generar tu key
+            con tus propios datos.
+          </p>
+          <Link href="/" className="btn">
+            Crear mi cuenta
+          </Link>
+        </div>
+      ) : (
+        <>
+          {loadError && <p className="auth-error conn-error">{loadError}</p>}
 
-      <section className="card conn-section">
+          <section className="card conn-section">
         <div className="conn-section-head">
           <div>
             <h2 className="conn-h2">Tus API keys</h2>
@@ -291,19 +337,28 @@ export default function ConnectionsPage() {
                 ? `${active.length} de ${limits.keys} activas · ${limits.requestsPerDay.toLocaleString("es-AR")} pedidos por día`
                 : ""}
             </p>
+            {atLimit && (
+              <p className="conn-sub conn-limit-hint" id="key-limit-hint">
+                Llegaste al límite del plan {tier}: revocá una key para crear otra.
+              </p>
+            )}
           </div>
           <button
-            className="btn"
+            className={`btn${atLimit && !formOpen ? " btn-at-limit" : ""}`}
             onClick={() => {
+              if (atLimit && !formOpen) {
+                showToast(
+                  `Límite del plan ${tier} alcanzado (${limits.keys} ${
+                    limits.keys === 1 ? "key activa" : "keys activas"
+                  }). Revocá una para crear otra.`
+                );
+                return;
+              }
               setFormOpen((o) => !o);
               setFormError("");
             }}
-            disabled={limits ? active.length >= limits.keys : false}
-            title={
-              limits && active.length >= limits.keys
-                ? "Revocá una key para crear otra"
-                : "Crear una API key"
-            }
+            aria-describedby={atLimit ? "key-limit-hint" : undefined}
+            title={atLimit ? "Límite del plan alcanzado" : "Crear una API key"}
           >
             {formOpen ? "Cancelar" : "+ Nueva key"}
           </button>
@@ -488,6 +543,15 @@ export default function ConnectionsPage() {
         <strong>Eliminar</strong> la borra de verdad, junto con su contador de uso: de
         la key no queda nada.
       </p>
+        </>
+      )}
+
+      {/* Aviso efímero: aparece al clickear "+ Nueva key" con el cupo lleno. */}
+      {toast && (
+        <div className="conn-toast" role="status" aria-live="polite">
+          {toast}
+        </div>
+      )}
     </div>
   );
 }
