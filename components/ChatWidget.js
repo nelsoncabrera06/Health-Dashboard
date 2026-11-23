@@ -181,7 +181,12 @@ export default function ChatWidget({ targets, userId, diets, country, onSaved, m
       }
       setMsgs((m) => [
         ...m,
-        { role: "assistant", content: out.reply, estimate: out.estimate },
+        {
+          role: "assistant",
+          content: out.reply,
+          estimate: out.estimate,
+          weight: out.weight,
+        },
       ]);
     } catch (err) {
       // El límite de la demo se muestra como tarjeta con CTA, no como error.

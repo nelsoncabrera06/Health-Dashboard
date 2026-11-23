@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { complete } from "../../../lib/ai";
 import { serviceClient } from "../../../lib/api/service";
-import { parseAssistantText } from "../../../lib/chatParse";
+import { parseAssistantText, weightFromUserMessage } from "../../../lib/chatParse";
 
 // Chat de texto multi-provider (ver lib/ai.js: AI_PROVIDER=openrouter|gemini).
 // Las API keys viven solo en el servidor. El cliente manda su access token
@@ -38,9 +38,10 @@ Si te preguntan qué modelo de AI sos, quién te desarrolló o de qué empresa s
 IMPORTANTE: siempre que haya una estimación, cerrá tu respuesta con una línea separada con este formato exacto:
 ESTIMACIÓN: {"meal": "nombre corto", "calories": N, "protein": N, "carbs": N, "fat": N}
 Si el usuario mencionó cualquier comida o bebida, esa línea es obligatoria. Escribí todo en texto plano, sin markdown: nada de asteriscos, negritas, guiones bajos ni backticks.
-Peso corporal: cuando el usuario cuente cuánto pesa o pida registrar su peso, contestá en una o dos líneas y cerrá con una línea aparte con este formato exacto:
+Peso corporal: cuando el usuario cuente cuánto pesa, diga que se pesó o pida registrar su peso, contestá en una o dos líneas y cerrá con una línea aparte con este formato exacto:
 PESO: {"weight": N}
 N es el peso en kg, solo el número (ej. 113.5, con punto). Esa línea va sola, sin texto en el mismo renglón y sin markdown.
+Cuenta cualquier forma de decirlo, no hace falta que use la palabra "peso": "me pesé 113,5", "hoy estoy en 113,5 kg", "la balanza marcó 113,5", "ando en 113", "peso 113,5 kg". Si cuenta que se pesó o pide registrarlo, la línea es OBLIGATORIA aunque ya haya dado el número antes o venga con errores de tipeo.
 Nunca digas que ya registraste, guardaste, anotaste o que "tenés" el peso guardado: el registro lo hace el usuario con el botón "Registrar" de la tarjeta que aparece debajo. Si pide registrar un peso que ya mencionó antes, volvé a emitir la línea con ese valor. Si solo comenta el peso de una tarjeta ya mostrada ("sigo igual", "bajé un poco"), no repitas la línea.
 Aclaración: son estimaciones aproximadas, no consejo médico.`;
 
@@ -166,11 +167,20 @@ export async function POST(req) {
 
   // Burbuja visible + tarjetas estructuradas (comida y peso). El parseo vive
   // en lib/chatParse.js: tolera markdown, claves en español y coma decimal.
-  const { reply, estimate, weight } = parseAssistantText(text);
+  const parsed = parseAssistantText(text);
+  // Si el modelo no emitió la línea PESO, la tarjeta se arma desde el mensaje
+  // del usuario: no dependemos de que el modelo obedezca al pie de la letra.
+  const weight =
+    parsed.weight ||
+    (last.role === "user" ? weightFromUserMessage(last.content) : null);
 
   usage.set(user.id, {
     day,
     count: (u && u.day === day ? u.count : 0) + 1,
   });
-  return Response.json({ reply, estimate, weight });
+  return Response.json({
+    reply: parsed.reply,
+    estimate: parsed.estimate,
+    weight,
+  });
 }
