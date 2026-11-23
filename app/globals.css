@@ -354,6 +354,8 @@ body.chat-resizing { user-select: none; transition: none; }
   border-radius: 10px; padding: 8px 12px; font-size: 12px;
 }
 .chat-est-title { font-weight: 700; color: var(--orange); }
+/* La tarjeta de peso se distingue de la de comida por el color del título. */
+.chat-weight .chat-est-title { color: var(--teal); }
 .chat-est-macros { color: var(--muted); margin-top: 2px; }
 .chat-est-actions { display: flex; gap: 6px; margin-top: 8px; }
 .chat-est-btn {

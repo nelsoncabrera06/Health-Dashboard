@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { complete } from "../../../lib/ai";
 import { serviceClient } from "../../../lib/api/service";
+import { parseAssistantText } from "../../../lib/chatParse";
 
 // Chat de texto multi-provider (ver lib/ai.js: AI_PROVIDER=openrouter|gemini).
 // Las API keys viven solo en el servidor. El cliente manda su access token
@@ -31,12 +32,16 @@ Saludos y cortesías: una línea y ofrecé estimar una comida.
 Estimá solo cuando el usuario te cuenta qué comió o bebió, o cuando pregunta por un alimento puntual. Si el mensaje es un comentario sobre una estimación que ya diste (sorpresa, "es una locura", "es mucho", agradecimiento, chiste), NO repitas la línea ESTIMACIÓN: contestá en texto corto y listo.
 Cuando el usuario te cuenta qué comió, estimá calorías y macros (proteína, carbos, grasas en gramos).
 Si falta info (porciones, ingredientes), igual estimá con supuestos razonables y avisalo en una línea.
-Si te pregunta si podés registrar, anotar o guardar la comida: la app tiene un botón "Registrar" justo debajo de tu estimación, así que NO digas que no podés. Contestá que con ese botón queda guardado en el día. Nunca menciones herramientas, funciones ni bases de datos.
+Si te pregunta si podés registrar, anotar o guardar una comida o el peso: la app tiene un botón "Registrar" debajo de tu respuesta (en la tarjeta de comida o en la de peso), así que NO digas que no podés. Contestá que con ese botón queda guardado en el día. Nunca menciones herramientas, funciones ni bases de datos.
 Si el usuario adjunta una foto de su comida, describí en una línea qué ves en el plato y estimá desde la imagen. La foto siempre llega bien al modelo: nunca digas que no ves ninguna foto.
 Si te preguntan qué modelo de AI sos, quién te desarrolló o de qué empresa sos, no especules ni inventes marcas: sos el asistente de Health Dashboard y la marca del modelo no es un dato que puedas dar.
 IMPORTANTE: siempre que haya una estimación, cerrá tu respuesta con una línea separada con este formato exacto:
 ESTIMACIÓN: {"meal": "nombre corto", "calories": N, "protein": N, "carbs": N, "fat": N}
 Si el usuario mencionó cualquier comida o bebida, esa línea es obligatoria. Escribí todo en texto plano, sin markdown: nada de asteriscos, negritas, guiones bajos ni backticks.
+Peso corporal: cuando el usuario cuente cuánto pesa o pida registrar su peso, contestá en una o dos líneas y cerrá con una línea aparte con este formato exacto:
+PESO: {"weight": N}
+N es el peso en kg, solo el número (ej. 113.5, con punto). Esa línea va sola, sin texto en el mismo renglón y sin markdown.
+Nunca digas que ya registraste, guardaste, anotaste o que "tenés" el peso guardado: el registro lo hace el usuario con el botón "Registrar" de la tarjeta que aparece debajo. Si pide registrar un peso que ya mencionó antes, volvé a emitir la línea con ese valor. Si solo comenta el peso de una tarjeta ya mostrada ("sigo igual", "bajé un poco"), no repitas la línea.
 Aclaración: son estimaciones aproximadas, no consejo médico.`;
 
 function todayKey() {
@@ -159,50 +164,13 @@ export async function POST(req) {
     );
   }
 
-  let estimate = null;
-  let reply = text;
-  // Texto plano en la burbuja: el modelo igual mete *cursivas* o **negritas**.
-  const stripMd = (s) =>
-    s
-      .replace(/\*\*/g, "")
-      .replace(/(^|[\s(])\*([^*\n]+)\*/g, "$1$2")
-      .replace(/`/g, "")
-      .replace(/\n{3,}/g, "\n\n");
-  // El modelo a veces envuelve la línea en markdown (`**ESTIMACIÓN:** {...}`)
-  // y a veces usa claves en español (comida/calorias/...). Se tolera todo eso.
-  const norm = text.replace(/[*`]/g, "");
-  const mLine =
-    norm.match(/ESTIMACI[ÓO]N:?\s*(\{[^{}]*\})/i) ||
-    norm.match(/(\{[^{}]*"(calories|calorias|kcal)"[^{}]*\})/i);
-  if (mLine) {
-    const num = (o, ...keys) => {
-      for (const k of keys) if (isFinite(+o[k])) return Math.round(+o[k]);
-      return 0;
-    };
-    try {
-      const e = JSON.parse(mLine[1]);
-      if (e && isFinite(+e.calories ?? +e.calorias ?? +e.kcal)) {
-        estimate = {
-          meal: String(e.meal || e.comida || e.nombre || "Comida"),
-          calories: num(e, "calories", "calorias", "kcal"),
-          protein: num(e, "protein", "proteinas", "proteina"),
-          carbs: num(e, "carbs", "carbos", "carbohidratos", "hidratos"),
-          fat: num(e, "fat", "grasas", "grasa"),
-        };
-      }
-    } catch {
-      // Si el JSON viene roto, se devuelve el texto pelado.
-    }
-    // La línea de estimación nunca se le muestra al usuario (matchee o no).
-    reply = stripMd(text.replace(/^.*ESTIMACI[ÓO]N:?\s*\{[^}]*\}\s*$/im, "").replace(mLine[1], ""))
-      .replace(/[-\s:]+$/, "")
-      .trim();
-  }
-  reply = stripMd(reply).trim();
+  // Burbuja visible + tarjetas estructuradas (comida y peso). El parseo vive
+  // en lib/chatParse.js: tolera markdown, claves en español y coma decimal.
+  const { reply, estimate, weight } = parseAssistantText(text);
 
   usage.set(user.id, {
     day,
     count: (u && u.day === day ? u.count : 0) + 1,
   });
-  return Response.json({ reply, estimate });
+  return Response.json({ reply, estimate, weight });
 }

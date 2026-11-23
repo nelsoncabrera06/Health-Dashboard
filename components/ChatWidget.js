@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { getSupabase } from "../lib/supabaseClient";
-import { addMeal } from "../lib/health";
+import { addMeal, addWeight } from "../lib/health";
 import { validateImageFile, compressImage } from "../lib/chatPhoto";
 import { dietLabel, countryLabel } from "../lib/profile";
 
@@ -15,6 +15,10 @@ const maxW = () =>
   typeof window === "undefined" ? 960 : Math.round(window.innerWidth * 0.5);
 const clampW = (w) => Math.min(Math.max(w, MIN_W), Math.max(MIN_W, maxW()));
 
+// 113.5 -> "113,5" (coma decimal, como se escribe acá).
+const fmtKg = (kg) =>
+  Number(kg).toLocaleString("es-AR", { maximumFractionDigits: 1 });
+
 export default function ChatWidget({ targets, userId, diets, country, onSaved, mode = "side" }) {
   const [open, setOpen] = useState(false);
   const [msgs, setMsgs] = useState([
@@ -26,7 +30,8 @@ export default function ChatWidget({ targets, userId, diets, country, onSaved, m
   ]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
-  const [savingIdx, setSavingIdx] = useState(null);
+  // Qué tarjeta está guardando: "meal-3" / "weight-3" (una por vez).
+  const [saving, setSaving] = useState(null);
   const [width, setWidth] = useState(DEFAULT_W);
   const [resizing, setResizing] = useState(false);
   // Paso 11: foto adjunta (data URL comprimida) + menú del botón "+".
@@ -197,8 +202,8 @@ export default function ChatWidget({ targets, userId, diets, country, onSaved, m
   // Paso 9c: guarda la estimación de una respuesta en `meals`.
   const saveMeal = async (idx) => {
     const est = msgs[idx]?.estimate;
-    if (!est || savingIdx !== null) return;
-    setSavingIdx(idx);
+    if (!est || saving !== null) return;
+    setSaving(`meal-${idx}`);
     try {
       await addMeal(userId, est);
       setMsgs((all) =>
@@ -214,7 +219,7 @@ export default function ChatWidget({ targets, userId, diets, country, onSaved, m
         )
       );
     } finally {
-      setSavingIdx(null);
+      setSaving(null);
     }
   };
 
@@ -222,6 +227,38 @@ export default function ChatWidget({ targets, userId, diets, country, onSaved, m
   const discardMeal = (idx) =>
     setMsgs((all) =>
       all.map((m, i) => (i === idx ? { ...m, discarded: true } : m))
+    );
+
+  // Peso: mismo flujo que la comida. Se guarda recién con el botón y un solo
+  // registro por día (si repite, pisa el anterior).
+  const saveWeight = async (idx) => {
+    const w = msgs[idx]?.weight;
+    if (!w || saving !== null) return;
+    setSaving(`weight-${idx}`);
+    try {
+      await addWeight(userId, w.weight);
+      setMsgs((all) =>
+        all.map((m, i) =>
+          i === idx ? { ...m, weightSaved: true, weightError: "" } : m
+        )
+      );
+      await onSaved?.();
+    } catch (err) {
+      setMsgs((all) =>
+        all.map((m, i) =>
+          i === idx
+            ? { ...m, weightError: err.message || "No se pudo guardar." }
+            : m
+        )
+      );
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  const discardWeight = (idx) =>
+    setMsgs((all) =>
+      all.map((m, i) => (i === idx ? { ...m, weightDiscarded: true } : m))
     );
 
   return (
@@ -306,14 +343,14 @@ export default function ChatWidget({ targets, userId, diets, country, onSaved, m
                       <button
                         className="chat-est-btn"
                         onClick={() => saveMeal(i)}
-                        disabled={savingIdx !== null}
+                        disabled={saving !== null}
                       >
-                        {savingIdx === i ? "Guardando…" : "＋ Registrar"}
+                        {saving === `meal-${i}` ? "Guardando…" : "＋ Registrar"}
                       </button>
                       <button
                         className="chat-est-btn secondary"
                         onClick={() => discardMeal(i)}
-                        disabled={savingIdx !== null}
+                        disabled={saving !== null}
                         title="No la registres en el día"
                       >
                         ✕ Descartar
@@ -322,6 +359,41 @@ export default function ChatWidget({ targets, userId, diets, country, onSaved, m
                   )}
                   {m.saveError && (
                     <div className="chat-est-err">⚠️ {m.saveError}</div>
+                  )}
+                </div>
+              )}
+              {m.weight && (
+                <div className="chat-est chat-weight">
+                  <div className="chat-est-title">
+                    ⚖️ {fmtKg(m.weight.weight)} kg · hoy
+                  </div>
+                  {m.weightSaved ? (
+                    <div className="chat-est-saved">✓ Peso registrado</div>
+                  ) : m.weightDiscarded ? (
+                    <div className="chat-est-discarded">✕ Descartado</div>
+                  ) : (
+                    <div className="chat-est-actions">
+                      <button
+                        className="chat-est-btn"
+                        onClick={() => saveWeight(i)}
+                        disabled={saving !== null}
+                      >
+                        {saving === `weight-${i}`
+                          ? "Guardando…"
+                          : "＋ Registrar"}
+                      </button>
+                      <button
+                        className="chat-est-btn secondary"
+                        onClick={() => discardWeight(i)}
+                        disabled={saving !== null}
+                        title="No lo registres"
+                      >
+                        ✕ Descartar
+                      </button>
+                    </div>
+                  )}
+                  {m.weightError && (
+                    <div className="chat-est-err">⚠️ {m.weightError}</div>
                   )}
                 </div>
               )}
