@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { complete } from "../../../lib/ai";
+import { serviceClient } from "../../../lib/api/service";
 
 // Chat de texto multi-provider (ver lib/ai.js: AI_PROVIDER=openrouter|gemini).
 // Las API keys viven solo en el servidor. El cliente manda su access token
@@ -14,6 +15,9 @@ function getSupabase() {
 }
 
 const DAILY_LIMIT = 20;
+// La demo es pública y compartida: un par de preguntas alcanza para probar. Usa
+// el mismo modelo que todos, el freno es el límite.
+const DEMO_DAILY_LIMIT = 10;
 
 // Rate limit simple en memoria: userId -> { day, count }.
 const usage = new Map();
@@ -51,13 +55,33 @@ export async function POST(req) {
   if (error || !user)
     return Response.json({ error: "Sesión inválida." }, { status: 401 });
 
+  // El rol define el cupo: la demo tiene un tope de prueba mucho más bajo.
+  const db = serviceClient();
+  const { data: profile } = db
+    ? await db.from("profiles").select("role").eq("id", user.id).maybeSingle()
+    : { data: null };
+  const isDemo = profile?.role === "demo";
+  const limit = isDemo ? DEMO_DAILY_LIMIT : DAILY_LIMIT;
+
   const day = todayKey();
   const u = usage.get(user.id);
-  if (u && u.day === day && u.count >= DAILY_LIMIT)
+  if (u && u.day === day && u.count >= limit) {
     return Response.json(
-      { error: "Límite diario del chat alcanzado. Probá mañana." },
+      isDemo
+        ? {
+            error:
+              "Alcanzaste el límite de prueba (10 mensajes por día). Creá tu cuenta para seguir usando el asistente.",
+            code: "demo_limit",
+            limit,
+          }
+        : {
+            error: "Límite diario del chat alcanzado. Probá mañana.",
+            code: "rate_limited",
+            limit,
+          },
       { status: 429 }
     );
+  }
 
   let body;
   try {

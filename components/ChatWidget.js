@@ -169,15 +169,25 @@ export default function ChatWidget({ targets, userId, diets, country, onSaved, m
         }),
       });
       const out = await r.json();
-      if (!r.ok) throw new Error(out.error || `Error ${r.status}`);
+      if (!r.ok) {
+        const e = new Error(out.error || `Error ${r.status}`);
+        e.code = out.code || "";
+        throw e;
+      }
       setMsgs((m) => [
         ...m,
         { role: "assistant", content: out.reply, estimate: out.estimate },
       ]);
     } catch (err) {
+      // El límite de la demo se muestra como tarjeta con CTA, no como error.
       setMsgs((m) => [
         ...m,
-        { role: "assistant", content: `⚠️ ${err.message}` },
+        {
+          role: "assistant",
+          content:
+            err.code === "demo_limit" ? err.message : `⚠️ ${err.message}`,
+          code: err.code || "",
+        },
       ]);
     } finally {
       setSending(false);
@@ -269,6 +279,15 @@ export default function ChatWidget({ targets, userId, diets, country, onSaved, m
                 />
               )}
               {!!m.content && <div className="chat-bubble">{m.content}</div>}
+              {m.code === "demo_limit" && (
+                <a
+                  className="chat-demo-cta"
+                  href="/logout"
+                  title="Cierra la sesión demo y volvés al inicio para registrarte"
+                >
+                  Crear mi cuenta
+                </a>
+              )}
               {m.estimate && (
                 <div className="chat-est">
                   <div className="chat-est-title">

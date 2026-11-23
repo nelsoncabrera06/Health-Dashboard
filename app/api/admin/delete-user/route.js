@@ -49,6 +49,21 @@ export async function POST(request) {
     .single();
   const isAdmin = callerProfile?.role === "admin";
 
+  // La demo es una cuenta pública y compartida: si un visitante la borra, todos
+  // se quedan sin demo y hay que recrearla a mano. No se borra nunca desde acá.
+  const { data: targetProfile } = await admin
+    .from("profiles")
+    .select("role")
+    .eq("id", targetId)
+    .maybeSingle();
+
+  if (targetProfile?.role === "demo") {
+    return NextResponse.json(
+      { error: "La cuenta demo no se puede eliminar." },
+      { status: 403 }
+    );
+  }
+
   if (!isAdmin && caller.id !== targetId) {
     return NextResponse.json({ error: "No tenés permiso." }, { status: 403 });
   }

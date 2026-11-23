@@ -39,13 +39,16 @@ export default function ProfileModal({
   onClose,
   onEdit,
 }) {
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
   const router = useRouter();
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
 
   if (!open) return null;
+
+  // La demo es una cuenta compartida: nadie la borra desde la web.
+  const isDemo = user?.role === "demo";
 
   const close = () => {
     setConfirming(false);
@@ -219,17 +222,19 @@ export default function ProfileModal({
         </div>
 
         <div className="profile-foot">
-          <button
-            type="button"
-            className="profile-delete-link"
-            onClick={() => {
-              setError("");
-              setConfirming(true);
-            }}
-            disabled={!profile || confirming}
-          >
-            Eliminar usuario
-          </button>
+          {!isDemo && (
+            <button
+              type="button"
+              className="profile-delete-link"
+              onClick={() => {
+                setError("");
+                setConfirming(true);
+              }}
+              disabled={!profile || confirming}
+            >
+              Eliminar usuario
+            </button>
+          )}
           <button
             type="button"
             className="btn btn-secondary"
