@@ -19,15 +19,17 @@ const clampW = (w) => Math.min(Math.max(w, MIN_W), Math.max(MIN_W, maxW()));
 const fmtKg = (kg) =>
   Number(kg).toLocaleString("es-AR", { maximumFractionDigits: 1 });
 
+const INITIAL_MSGS = [
+  {
+    role: "assistant",
+    content:
+      "Hola! Contame qué comiste y te estimo las calorías. Ej: “milanesa con puré”.",
+  },
+];
+
 export default function ChatWidget({ targets, userId, diets, country, onSaved, mode = "side" }) {
   const [open, setOpen] = useState(false);
-  const [msgs, setMsgs] = useState([
-    {
-      role: "assistant",
-      content:
-        "Hola! Contame qué comiste y te estimo las calorías. Ej: “milanesa con puré”.",
-    },
-  ]);
+  const [msgs, setMsgs] = useState(INITIAL_MSGS);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   // Qué tarjeta está guardando: "meal-3" / "weight-3" (una por vez).
@@ -51,6 +53,7 @@ export default function ChatWidget({ targets, userId, diets, country, onSaved, m
   const widthRef = useRef(DEFAULT_W);
   const galleryRef = useRef(null);
   const cameraRef = useRef(null);
+  const textareaRef = useRef(null);
 
   // El panel empuja el dashboard en desktop y en modo "de costado": la clase va
   // en el <body> porque el padding que achica el contenido lo define el layout.
@@ -139,6 +142,9 @@ export default function ChatWidget({ targets, userId, diets, country, onSaved, m
     const text = input.trim();
     if ((!text && !photo) || sending) return;
     setInput("");
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+    }
     // La foto viaja como data URL comprimida y el route la manda al modelo
     // con visión (paso 11). En el hilo queda visible igual.
     const shot = photo;
@@ -266,6 +272,33 @@ export default function ChatWidget({ targets, userId, diets, country, onSaved, m
       all.map((m, i) => (i === idx ? { ...m, weightDiscarded: true } : m))
     );
 
+  const newChat = () => {
+    if (sending) return;
+    setMsgs(INITIAL_MSGS);
+    setInput("");
+    setPhoto(null);
+    setPhotoError("");
+    setSaving(null);
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.focus();
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      send(e);
+    }
+  };
+
+  const handleInputChange = (e) => {
+    setInput(e.target.value);
+    const el = e.target;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+  };
+
   return (
     <>
       {!open && (
@@ -301,14 +334,27 @@ export default function ChatWidget({ targets, userId, diets, country, onSaved, m
               Estimaciones, no consejo médico
             </div>
           </div>
-          <button
-            className="chat-min"
-            onClick={() => setOpen(false)}
-            title="Minimizar y ver los dashboards"
-            aria-label="Minimizar el asistente"
-          >
-            —
-          </button>
+          <div className="chat-head-actions">
+            <button
+              type="button"
+              className="chat-btns"
+              onClick={newChat}
+              disabled={sending}
+              title="Nuevo chat: Borrar y empezar de cero"
+              aria-label="Nuevo chat"
+            >
+              ＋
+            </button>
+            <button
+              type="button"
+              className="chat-btns"
+              onClick={() => setOpen(false)}
+              title="Minimizar y ver los dashboards"
+              aria-label="Minimizar el asistente"
+            >
+              —
+            </button>
+          </div>
         </div>
         <div className="chat-msgs">
           {msgs.map((m, i) => (
@@ -433,9 +479,9 @@ export default function ChatWidget({ targets, userId, diets, country, onSaved, m
               onClick={() => setMenuOpen((v) => !v)}
               aria-label="Adjuntar foto"
               aria-expanded={menuOpen}
-              title="Adjuntar foto"
+              title="Adjuntar foto" 
             >
-              ＋
+              ...
             </button>
             {menuOpen && (
               <div className="chat-attach-menu" role="menu">
@@ -471,11 +517,14 @@ export default function ChatWidget({ targets, userId, diets, country, onSaved, m
             hidden
             onChange={onPickFile}
           />
-          <input
+          <textarea
+            ref={textareaRef}
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={handleInputChange}
+            onKeyDown={handleKeyDown}
             placeholder="Qué comiste?"
             maxLength={1000}
+            rows={1}
           />
           <button
             className="btn"
