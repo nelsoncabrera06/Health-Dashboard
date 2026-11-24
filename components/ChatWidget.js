@@ -23,7 +23,7 @@ const INITIAL_MSGS = [
   {
     role: "assistant",
     content:
-      "Hola! Contame qué comiste y te estimo las calorías. Ej: “milanesa con puré”.",
+      "Hola! Contame qué comiste y te estimo las calorías, Ej: “milanesa con puré”, o decime cual es tu peso y te lo registro, “mi peso de hoy es 75.3 kg”.",
   },
 ];
 
