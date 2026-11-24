@@ -5,6 +5,7 @@ import { serviceClient } from "../../../lib/api/service";
 import { parseAssistantText, weightFromUserMessage } from "../../../lib/chatParse";
 import { limitsFor, DEMO_CHAT_MESSAGES_PER_DAY } from "../../../lib/api/tiers";
 import { dateInTz, DEFAULT_TZ } from "../../../lib/api/data";
+import { transcribe } from "../../../lib/stt";
 
 // Chat de texto multi-provider (ver lib/ai.js: AI_PROVIDER=openrouter|gemini).
 // Las API keys viven solo en el servidor. El cliente manda su access token
@@ -35,7 +36,7 @@ Cuando el usuario te cuenta qué comió, estimá calorías y macros (proteína, 
 Si falta info (porciones, ingredientes), igual estimá con supuestos razonables y avisalo en una línea.
 Si te pregunta si podés registrar, anotar o guardar una comida o el peso: la app tiene un botón "Registrar" debajo de tu respuesta (en la tarjeta de comida o en la de peso), así que NO digas que no podés. Contestá que con ese botón queda guardado en el día. Nunca menciones herramientas, funciones ni bases de datos.
 Si el usuario adjunta una foto de su comida, describí en una línea qué ves en el plato y estimá desde la imagen. La foto siempre llega bien al modelo: nunca digas que no ves ninguna foto.
-Si el usuario envía una nota de voz o audio, escuchalo con atención, interpretá lo que dijo (comidas, bebidas, porciones, peso corporal o preguntas) y respondé con la misma precisión y formato (ESTIMACIÓN o PESO) que si fuera texto. El audio siempre llega bien: nunca digas que no podés escuchar audio.
+Las notas de voz llegan transcriptas a texto, así que el mensaje puede venir sin puntuación o con errores de reconocimiento: interpretá la intención igual y respondé con el mismo formato que con texto (ESTIMACIÓN o PESO). Nunca digas que no podés escuchar audio ni que no recibiste la nota.
 Si te preguntan qué modelo de AI sos, quién te desarrolló o de qué empresa sos, no especules ni inventes marcas: sos el asistente de Health Dashboard y la marca del modelo no es un dato que puedas dar.
 IMPORTANTE: siempre que haya una estimación, cerrá tu respuesta con una línea separada con este formato exacto:
 ESTIMACIÓN: {"meal": "nombre corto", "calories": N, "protein": N, "carbs": N, "fat": N}
@@ -237,8 +238,22 @@ export async function POST(req) {
   const last = messages[messages.length - 1];
   if (image && last.role === "user" && !last.content.trim())
     last.content = "Describí qué ves en la foto y estimá calorías y macros.";
-  if (audio && last.role === "user" && !last.content.trim())
-    last.content = "Escuchá mi mensaje de voz, respondeme y estimá o registrá si corresponde.";
+
+  // El audio se transcribe antes de llamar al modelo, así la voz funciona con
+  // cualquier provider/modelo (antes solo Gemini aceptaba audio nativo).
+  // El transcript viaja al cliente para mostrarlo en la burbuja.
+  let transcript = null;
+  if (audio) {
+    try {
+      transcript = (await transcribe(audio)).text;
+    } catch (e) {
+      return reply({ error: e.message, code: e.code || "stt_failed" }, e.status || 502);
+    }
+    if (last.role === "user") {
+      const caption = last.content.trim();
+      last.content = caption ? `${caption}\n${transcript}` : transcript;
+    }
+  }
 
   const t = body?.targets;
   // Preferencias alimentarias del onboarding (llegan como labels ya legibles).
@@ -271,7 +286,7 @@ export async function POST(req) {
 
   let text;
   try {
-    text = await complete({ system: sys, messages, image, audio });
+    text = await complete({ system: sys, messages, image });
   } catch (e) {
     return reply(
       { error: e.message || "Error del modelo." },
@@ -297,6 +312,8 @@ export async function POST(req) {
     reply: parsed.reply,
     estimate: parsed.estimate,
     weight,
+    // Lo que se entendió de la nota de voz (null si el mensaje era de texto).
+    transcript,
     used: newCount,
     limit,
     remaining: Math.max(0, limit - newCount),

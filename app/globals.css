@@ -686,6 +686,17 @@ body.chat-resizing { user-select: none; transition: none; }
   white-space: nowrap;
   flex: 0 0 auto;
 }
+/* Lo que el STT entendió de la nota de voz. */
+.chat-transcript {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.45;
+  font-style: italic;
+  opacity: 0.9;
+  word-break: break-word;
+}
+.chat-msg.user .chat-transcript { color: rgba(255, 255, 255, 0.92); }
+.chat-msg.assistant .chat-transcript { color: var(--muted); }
 .chat-attach-menu {
   position: absolute; bottom: calc(100% + 8px); left: 0;
   background: var(--card2); border: 1px solid var(--border);

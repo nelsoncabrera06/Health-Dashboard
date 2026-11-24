@@ -21,6 +21,29 @@ const clampW = (w) => Math.min(Math.max(w, MIN_W), Math.max(MIN_W, maxW()));
 const fmtKg = (kg) =>
   Number(kg).toLocaleString("es-AR", { maximumFractionDigits: 1 });
 
+// Micrófono de línea (estilo Feather), sin emoji: hereda el color del botón.
+function MicIcon({ size = 19 }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <rect x="9" y="1.5" width="6" height="11.5" rx="3" />
+      <path d="M5.5 11v1.5a6.5 6.5 0 0 0 13 0V11" />
+      <line x1="12" y1="19" x2="12" y2="22" />
+      <line x1="8.5" y1="22" x2="15.5" y2="22" />
+    </svg>
+  );
+}
+
 function AudioBubble({ src, duration }) {
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -353,15 +376,26 @@ export default function ChatWidget({ targets, userId, isDemo, diets, country, on
           isDemo: out.isDemo,
         });
       }
-      setMsgs((m) => [
-        ...m,
-        {
+      setMsgs((m) => {
+        const next = [...m];
+        // Nota de voz: el transcript pertenece a la burbuja del usuario, así
+        // se ve qué se entendió (y sirve para depurar sin adivinar).
+        if (out.transcript) {
+          for (let i = next.length - 1; i >= 0; i--) {
+            if (next[i].role === "user" && next[i].audio) {
+              next[i] = { ...next[i], transcript: out.transcript };
+              break;
+            }
+          }
+        }
+        next.push({
           role: "assistant",
           content: out.reply,
           estimate: out.estimate,
           weight: out.weight,
-        },
-      ]);
+        });
+        return next;
+      });
     } catch (err) {
       if (typeof err.limit === "number") {
         setUsageInfo((prev) => ({
@@ -566,6 +600,11 @@ export default function ChatWidget({ targets, userId, isDemo, diets, country, on
               {m.audio && (
                 <AudioBubble src={m.audio} duration={m.audioDuration} />
               )}
+              {m.transcript && (
+                <div className="chat-transcript" title="Lo que se entendió de la nota de voz">
+                  🎤 {m.transcript}
+                </div>
+              )}
               {!!m.content && <div className="chat-bubble">{m.content}</div>}
               {m.code === "demo_limit" && (
                 <a
@@ -736,7 +775,7 @@ export default function ChatWidget({ targets, userId, isDemo, diets, country, on
                 title="Grabar nota de voz (máx. 30s)"
                 aria-label="Grabar nota de voz"
               >
-                🎙️
+                <MicIcon />
               </button>
               <input
                 type="file"
