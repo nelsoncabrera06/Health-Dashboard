@@ -23,17 +23,6 @@ import ChatWidget from "../../components/ChatWidget";
 import Onboarding from "../../components/Onboarding";
 import ProfileModal from "../../components/ProfileModal";
 
-function pct(val, target) {
-  return target > 0 ? Math.min(100, Math.round((val / target) * 100)) : 0;
-}
-
-function barColor(p) {
-  if (p < 50) return "var(--red)";
-  if (p < 85) return "var(--yellow)";
-  if (p <= 105) return "var(--green)";
-  return "var(--red)";
-}
-
 function fmtEatenAt(iso) {
   const d = new Date(iso);
   const date = d.toLocaleDateString("es", {
@@ -50,23 +39,89 @@ function fmtEatenAt(iso) {
 
 const EMPTY_FORM = { meal: "", calories: "", protein: "", carbs: "", fat: "" };
 
-function MacroCard({ label, value, target, unit, color }) {
-  const p = pct(value, target);
+function MacroCard({ label, value, target, unit, color, type, info }) {
+  const [showTooltip, setShowTooltip] = useState(false);
+  const v = Math.round(value || 0);
+  const tgt = Math.round(target || 0);
+  const pctReal = tgt > 0 ? Math.round((value / target) * 100) : 0;
+  const pctBar = Math.min(100, Math.max(0, pctReal));
+  const subUnit = unit === "" ? " kcal" : unit;
+
+  let subText = "";
+  let isOver = false;
+  let isMet = false;
+
+  if (!tgt || tgt <= 0) {
+    subText = "Sin meta definida";
+  } else if (type === "floor") {
+    const diff = tgt - v;
+    if (diff > 0) {
+      subText = `faltan ${diff}${subUnit} · ${pctReal}%`;
+    } else {
+      isMet = true;
+      const over = v - tgt;
+      subText = `meta cumplida${over > 0 ? ` (+${over}${subUnit})` : ""} · ${pctReal}%`;
+    }
+  } else {
+    const diff = tgt - v;
+    if (diff >= 0) {
+      subText = `quedan ${diff}${subUnit} · ${pctReal}%`;
+    } else {
+      isOver = true;
+      const over = v - tgt;
+      subText = `+${over}${subUnit} excedido · ${pctReal}%`;
+    }
+  }
+
+  let barBg = color;
+  if (type === "floor" && isMet) {
+    barBg = "var(--green)";
+  } else if (type !== "floor" && isOver) {
+    barBg = "var(--red)";
+  }
+
   return (
     <div className="card">
-      <div className="card-label">{label}</div>
-      <div className="card-value" style={{ color }}>
-        {Math.round(value)}
-        {unit}
+      <div className="card-header-row">
+        <div className="card-label">{label}</div>
+        {info && (
+          <div className="card-info-wrap">
+            <button
+              type="button"
+              className="card-info-btn"
+              aria-label={`Información sobre ${label}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowTooltip((prev) => !prev);
+              }}
+              onBlur={() => {
+                setTimeout(() => setShowTooltip(false), 250);
+              }}
+            >
+              i
+            </button>
+            <div className={`card-tooltip${showTooltip ? " open" : ""}`}>
+              <div className="card-tooltip-role" style={{ color }}>
+                {info.role}
+              </div>
+              <div className="card-tooltip-desc">{info.desc}</div>
+              <div className="card-tooltip-meta">
+                Meta: <strong>{tgt}{subUnit}</strong> · Consumido: <strong>{v}{subUnit}</strong>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
-      <div className="card-sub">
-        de {target}
-        {unit} · {p}%
+      <div className="card-value" style={{ color }}>
+        {v}{unit}
+      </div>
+      <div className={`card-sub${isOver ? " over" : ""}${isMet ? " met" : ""}`}>
+        {subText}
       </div>
       <div className="progress-track">
         <div
           className="progress-fill"
-          style={{ width: `${p}%`, background: barColor(p) }}
+          style={{ width: `${pctBar}%`, background: barBg }}
         />
       </div>
     </div>
@@ -426,6 +481,11 @@ export default function Dashboard() {
               target={targets.calories}
               unit=""
               color="var(--orange)"
+              type="ceiling"
+              info={{
+                role: "Techo diario (Límite)",
+                desc: "Presupuesto de energía total para mantener tu déficit. Procura no superarlo.",
+              }}
             />
             <MacroCard
               label="💪 Proteína"
@@ -433,6 +493,11 @@ export default function Dashboard() {
               target={targets.protein}
               unit="g"
               color="var(--blue)"
+              type="floor"
+              info={{
+                role: "Piso diario (Mínimo)",
+                desc: "Objetivo a alcanzar o superar. Clave para retener masa muscular y dar saciedad.",
+              }}
             />
             <MacroCard
               label="🍞 Carbos"
@@ -440,6 +505,11 @@ export default function Dashboard() {
               target={targets.carbs}
               unit="g"
               color="var(--yellow)"
+              type="budget"
+              info={{
+                role: "Presupuesto diario",
+                desc: "Combustible principal para energía y rendimiento. Presupuesto flexible.",
+              }}
             />
             <MacroCard
               label="🥑 Grasas"
@@ -447,6 +517,11 @@ export default function Dashboard() {
               target={targets.fat}
               unit="g"
               color="var(--teal)"
+              type="ceiling"
+              info={{
+                role: "Techo diario (Límite)",
+                desc: "Esenciales para salud hormonal, pero con 9 kcal/g. Evita excederlo para no disparar las calorías.",
+              }}
             />
           </>
         )}
