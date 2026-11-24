@@ -235,14 +235,20 @@ export default function ProfileModal({
               Eliminar usuario
             </button>
           )}
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={onEdit}
-            disabled={!profile}
-          >
-            ✏️ Editar
-          </button>
+          {isDemo ? (
+            <span className="profile-demo-note">
+              En la demo el perfil es de ejemplo y no se edita.
+            </span>
+          ) : (
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={onEdit}
+              disabled={!profile}
+            >
+              ✏️ Editar
+            </button>
+          )}
         </div>
       </div>
     </div>

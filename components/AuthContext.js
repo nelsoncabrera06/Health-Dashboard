@@ -9,6 +9,7 @@ import {
   setUserPrefs,
   signInWithGoogle as authSignInWithGoogle,
 } from "../lib/auth";
+import { clearDemoSandbox } from "../lib/demoSandbox";
 
 const AuthContext = createContext(null);
 
@@ -59,11 +60,16 @@ export function AuthProvider({ children }) {
 
   const signInDemo = async () => {
     if (!CAN_DEMO) throw new Error("La demo no está configurada.");
+    // Sandbox limpio en cada entrada: lo que probó un visitante anterior en
+    // esta misma pestaña no se mezcla con lo del siguiente.
+    clearDemoSandbox();
     return signIn({ identifier: DEMO_EMAIL, password: DEMO_PASSWORD }, "login");
   };
 
   const signOut = async () => {
     await getSupabase().auth.signOut();
+    // "Se cierra sesión, se borran los datos de la demo."
+    clearDemoSandbox();
     setUser(null);
   };
 

@@ -1,7 +1,10 @@
 import { createClient } from "@supabase/supabase-js";
+import { randomUUID } from "crypto";
 import { complete } from "../../../lib/ai";
 import { serviceClient } from "../../../lib/api/service";
 import { parseAssistantText, weightFromUserMessage } from "../../../lib/chatParse";
+import { limitsFor, DEMO_CHAT_MESSAGES_PER_DAY } from "../../../lib/api/tiers";
+import { dateInTz, DEFAULT_TZ } from "../../../lib/api/data";
 
 // Chat de texto multi-provider (ver lib/ai.js: AI_PROVIDER=openrouter|gemini).
 // Las API keys viven solo en el servidor. El cliente manda su access token
@@ -15,11 +18,9 @@ function getSupabase() {
   return createClient(url, anonKey);
 }
 
-const DAILY_LIMIT = 20;
-// La demo es pública y compartida: un par de preguntas alcanza para probar. Usa
-// el mismo modelo que todos, el freno es el límite.
-const DEMO_DAILY_LIMIT = 10;
-
+// El cupo del chat sale del TIER del perfil (`lib/api/tiers.js`), no del rol:
+// free 30, pro 100, premium 500. La demo es la excepción, porque es un rol
+// público y compartido con un cupo de prueba chico.
 // Rate limit simple en memoria: userId -> { day, count }.
 const usage = new Map();
 
@@ -34,6 +35,7 @@ Cuando el usuario te cuenta qué comió, estimá calorías y macros (proteína, 
 Si falta info (porciones, ingredientes), igual estimá con supuestos razonables y avisalo en una línea.
 Si te pregunta si podés registrar, anotar o guardar una comida o el peso: la app tiene un botón "Registrar" debajo de tu respuesta (en la tarjeta de comida o en la de peso), así que NO digas que no podés. Contestá que con ese botón queda guardado en el día. Nunca menciones herramientas, funciones ni bases de datos.
 Si el usuario adjunta una foto de su comida, describí en una línea qué ves en el plato y estimá desde la imagen. La foto siempre llega bien al modelo: nunca digas que no ves ninguna foto.
+Si el usuario envía una nota de voz o audio, escuchalo con atención, interpretá lo que dijo (comidas, bebidas, porciones, peso corporal o preguntas) y respondé con la misma precisión y formato (ESTIMACIÓN o PESO) que si fuera texto. El audio siempre llega bien: nunca digas que no podés escuchar audio.
 Si te preguntan qué modelo de AI sos, quién te desarrolló o de qué empresa sos, no especules ni inventes marcas: sos el asistente de Health Dashboard y la marca del modelo no es un dato que puedas dar.
 IMPORTANTE: siempre que haya una estimación, cerrá tu respuesta con una línea separada con este formato exacto:
 ESTIMACIÓN: {"meal": "nombre corto", "calories": N, "protein": N, "carbs": N, "fat": N}
@@ -45,61 +47,162 @@ Cuenta cualquier forma de decirlo, no hace falta que use la palabra "peso": "me 
 Nunca digas que ya registraste, guardaste, anotaste o que "tenés" el peso guardado: el registro lo hace el usuario con el botón "Registrar" de la tarjeta que aparece debajo. Si pide registrar un peso que ya mencionó antes, volvé a emitir la línea con ese valor. Si solo comenta el peso de una tarjeta ya mostrada ("sigo igual", "bajé un poco"), no repitas la línea.
 Aclaración: son estimaciones aproximadas, no consejo médico.`;
 
-function todayKey() {
-  return new Date().toISOString().slice(0, 10);
+// El "día" del cupo es el del usuario, no UTC: si no, a las 21:00 de Argentina
+// el contador arrancaría de cero y el cupo sería de 14 mensajes por día real.
+function todayKey(timeZone) {
+  try {
+    return dateInTz(timeZone || DEFAULT_TZ);
+  } catch {
+    return dateInTz(DEFAULT_TZ);
+  }
 }
 
-export async function POST(req) {
+// La demo es una cuenta pública y compartida (un solo user_id). Para que cada
+// visitante tenga su propio cupo, el contador de la demo se lleva por cookie
+// httpOnly: 7 mensajes por navegador/día. Los usuarios registrados siguen por
+// user_id. La cookie se emite en la primera respuesta y dura 1 día.
+const DEMO_COOKIE = "hd_demo_sid";
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function readCookie(req, name) {
+  const raw = req.headers.get("cookie") || "";
+  for (const part of raw.split(";")) {
+    const i = part.indexOf("=");
+    if (i === -1) continue;
+    if (part.slice(0, i).trim() === name)
+      return decodeURIComponent(part.slice(i + 1).trim());
+  }
+  return null;
+}
+
+function demoCookie(req, id) {
+  const secure = new URL(req.url).protocol === "https:" ? "; Secure" : "";
+  return `${DEMO_COOKIE}=${id}; Path=/; HttpOnly; SameSite=Lax; Max-Age=86400${secure}`;
+}
+
+// IP del cliente (Vercel setea x-forwarded-for). Solo se usa para el fallback
+// de la demo cuando el cliente no manda cookie.
+function clientIp(req) {
+  const fwd = req.headers.get("x-forwarded-for") || "";
+  return fwd.split(",")[0].trim() || req.headers.get("x-real-ip") || "unknown";
+}
+
+async function authenticateUser(req) {
   const auth = req.headers.get("authorization") || "";
   const token = auth.startsWith("Bearer ") ? auth.slice(7) : null;
-  if (!token)
-    return Response.json({ error: "No autenticado." }, { status: 401 });
+  if (!token) return { error: "No autenticado.", status: 401 };
 
   const supabase = getSupabase();
   if (!supabase) {
-    return Response.json(
-      { error: "Falta configurar Supabase en el servidor." },
-      { status: 500 }
-    );
+    return { error: "Falta configurar Supabase en el servidor.", status: 500 };
   }
   const { data, error } = await supabase.auth.getUser(token);
   const user = data?.user;
-  if (error || !user)
-    return Response.json({ error: "Sesión inválida." }, { status: 401 });
+  if (error || !user) return { error: "Sesión inválida.", status: 401 };
 
-  // El rol define el cupo: la demo tiene un tope de prueba mucho más bajo.
+  // El cupo del chat va atado al TIER (free/pro/premium). La demo es la única
+  // excepción porque es un rol, no un tier.
   const db = serviceClient();
   const { data: profile } = db
-    ? await db.from("profiles").select("role").eq("id", user.id).maybeSingle()
+    ? await db
+        .from("profiles")
+        .select("role, tier, timezone")
+        .eq("id", user.id)
+        .maybeSingle()
     : { data: null };
   const isDemo = profile?.role === "demo";
-  const limit = isDemo ? DEMO_DAILY_LIMIT : DAILY_LIMIT;
+  const tier = profile?.tier || "free";
+  const limit = isDemo
+    ? DEMO_CHAT_MESSAGES_PER_DAY
+    : limitsFor(tier).chatMessagesPerDay;
 
-  const day = todayKey();
-  const u = usage.get(user.id);
-  if (u && u.day === day && u.count >= limit) {
-    return Response.json(
+  // Clave del rate limit: user_id para los registrados, cookie para la demo.
+  // Sin cookie (scripts, clientes raros) la demo cae a la IP, así que no se
+  // estrena cupo con solo ignorar el Set-Cookie.
+  let key = user.id;
+  let newDemoId = null;
+  if (isDemo) {
+    let sid = readCookie(req, DEMO_COOKIE);
+    if (sid && !UUID_RE.test(sid)) sid = null;
+    if (!sid) {
+      sid = randomUUID();
+      newDemoId = sid;
+      key = `demo:ip:${clientIp(req)}`;
+    } else {
+      key = `demo:sid:${sid}`;
+    }
+  }
+
+  const day = todayKey(profile?.timezone);
+  // La demo suma una entrada por visitante: si el Map crece, se purgan los días
+  // viejos (el cupo vence a las 00:00 del usuario).
+  if (usage.size > 5000) {
+    for (const [k, v] of usage) if (v.day !== day) usage.delete(k);
+  }
+  const u = usage.get(key);
+  const used = u && u.day === day ? u.count : 0;
+  const remaining = Math.max(0, limit - used);
+
+  return { user, key, isDemo, tier, limit, used, remaining, day, u, newDemoId };
+}
+
+export async function GET(req) {
+  const auth = await authenticateUser(req);
+  if (auth.error) {
+    return Response.json({ error: auth.error }, { status: auth.status });
+  }
+  const res = Response.json({
+    used: auth.used,
+    limit: auth.limit,
+    remaining: auth.remaining,
+    isDemo: auth.isDemo,
+    tier: auth.tier,
+  });
+  if (auth.newDemoId) res.headers.append("Set-Cookie", demoCookie(req, auth.newDemoId));
+  return res;
+}
+
+export async function POST(req) {
+  const auth = await authenticateUser(req);
+  if (auth.error) {
+    return Response.json({ error: auth.error }, { status: auth.status });
+  }
+
+  const { key, isDemo, tier, limit, used, day, newDemoId } = auth;
+  // Toda respuesta del POST lleva la cookie de la demo cuando es nueva, errores
+  // incluidos: si no, cada intento fallido estrenaría un cupo distinto.
+  const reply = (body, status = 200) => {
+    const res = Response.json(body, { status });
+    if (newDemoId) res.headers.append("Set-Cookie", demoCookie(req, newDemoId));
+    return res;
+  };
+
+  if (used >= limit) {
+    return reply(
       isDemo
         ? {
-            error:
-              "Alcanzaste el límite de prueba (10 mensajes por día). Creá tu cuenta para seguir usando el asistente.",
+            error: `Alcanzaste el límite de prueba (${limit} mensajes por día). Creá tu cuenta para seguir usando el asistente.`,
             code: "demo_limit",
             limit,
+            used,
+            remaining: 0,
           }
         : {
-            error: "Límite diario del chat alcanzado. Probá mañana.",
+            error: `Límite diario del chat alcanzado (${limit} mensajes). Probá mañana.`,
             code: "rate_limited",
             limit,
+            used,
+            remaining: 0,
           },
-      { status: 429 }
+      429
     );
   }
 
-  let body;
-  try {
+  let body;  try {
     body = await req.json();
   } catch {
-    return Response.json({ error: "Body inválido." }, { status: 400 });
+    return reply({ error: "Body inválido." }, 400);
   }
   const messages = Array.isArray(body?.messages)
     ? body.messages
@@ -112,7 +215,7 @@ export async function POST(req) {
         .slice(-20)
     : null;
   if (!messages || !messages.length)
-    return Response.json({ error: "Sin mensajes." }, { status: 400 });
+    return reply({ error: "Sin mensajes." }, 400);
 
   // Visión (paso 11): la foto llega como data URL (el cliente la comprime).
   // El historial se manda solo texto; la imagen va aparte al provider.
@@ -121,10 +224,21 @@ export async function POST(req) {
       ? body.image
       : null;
   if (typeof body?.image === "string" && !image)
-    return Response.json({ error: "La foto llegó en un formato inválido." }, { status: 400 });
+    return reply({ error: "La foto llegó en un formato inválido." }, 400);
+
+  // Nota de voz (estilo Telegram): audio en data URL base64.
+  const audio =
+    typeof body?.audio === "string" && body.audio.startsWith("data:audio/")
+      ? body.audio
+      : null;
+  if (typeof body?.audio === "string" && !audio)
+    return reply({ error: "El audio llegó en un formato inválido." }, 400);
+
   const last = messages[messages.length - 1];
   if (image && last.role === "user" && !last.content.trim())
     last.content = "Describí qué ves en la foto y estimá calorías y macros.";
+  if (audio && last.role === "user" && !last.content.trim())
+    last.content = "Escuchá mi mensaje de voz, respondeme y estimá o registrá si corresponde.";
 
   const t = body?.targets;
   // Preferencias alimentarias del onboarding (llegan como labels ya legibles).
@@ -157,11 +271,11 @@ export async function POST(req) {
 
   let text;
   try {
-    text = await complete({ system: sys, messages, image });
+    text = await complete({ system: sys, messages, image, audio });
   } catch (e) {
-    return Response.json(
+    return reply(
       { error: e.message || "Error del modelo." },
-      { status: e.status || 502 }
+      e.status || 502
     );
   }
 
@@ -174,13 +288,19 @@ export async function POST(req) {
     parsed.weight ||
     (last.role === "user" ? weightFromUserMessage(last.content) : null);
 
-  usage.set(user.id, {
+  const newCount = used + 1;
+  usage.set(key, {
     day,
-    count: (u && u.day === day ? u.count : 0) + 1,
+    count: newCount,
   });
-  return Response.json({
+  return reply({
     reply: parsed.reply,
     estimate: parsed.estimate,
     weight,
+    used: newCount,
+    limit,
+    remaining: Math.max(0, limit - newCount),
+    isDemo,
+    tier,
   });
 }

@@ -3,7 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import { getSupabase } from "../lib/supabaseClient";
 import { addMeal, addWeight } from "../lib/health";
+import { addDemoMeal, upsertDemoWeight } from "../lib/demoSandbox";
 import { validateImageFile, compressImage } from "../lib/chatPhoto";
+import { VoiceRecorder, formatAudioTime, MAX_AUDIO_SECONDS } from "../lib/chatAudio";
 import { dietLabel, countryLabel } from "../lib/profile";
 
 // Límite de adjunto y compresión: ver lib/chatPhoto.js.
@@ -19,6 +21,71 @@ const clampW = (w) => Math.min(Math.max(w, MIN_W), Math.max(MIN_W, maxW()));
 const fmtKg = (kg) =>
   Number(kg).toLocaleString("es-AR", { maximumFractionDigits: 1 });
 
+function AudioBubble({ src, duration }) {
+  const [playing, setPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+  const audioRef = useRef(null);
+
+  const toggle = () => {
+    if (!audioRef.current) return;
+    if (playing) {
+      audioRef.current.pause();
+    } else {
+      audioRef.current.play().catch(() => {});
+    }
+  };
+
+  const onTimeUpdate = () => {
+    const el = audioRef.current;
+    if (!el || !el.duration) return;
+    setCurrentTime(el.currentTime);
+    setProgress((el.currentTime / el.duration) * 100);
+  };
+
+  const onEnded = () => {
+    setPlaying(false);
+    setProgress(0);
+    setCurrentTime(0);
+  };
+
+  return (
+    <div className="chat-voice-msg">
+      <audio
+        ref={audioRef}
+        src={src}
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
+        onTimeUpdate={onTimeUpdate}
+        onEnded={onEnded}
+      />
+      <button
+        type="button"
+        className="chat-voice-play"
+        onClick={toggle}
+        aria-label={playing ? "Pausar nota de voz" : "Reproducir nota de voz"}
+      >
+        {playing ? "❚❚" : "▶"}
+      </button>
+      <div
+        className="chat-voice-wave"
+        onClick={(e) => {
+          const rect = e.currentTarget.getBoundingClientRect();
+          const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+          if (audioRef.current && audioRef.current.duration) {
+            audioRef.current.currentTime = pct * audioRef.current.duration;
+          }
+        }}
+      >
+        <div className="chat-voice-bar" style={{ width: `${progress}%` }} />
+      </div>
+      <span className="chat-voice-time">
+        {formatAudioTime(playing ? currentTime : duration || 0)}
+      </span>
+    </div>
+  );
+}
+
 const INITIAL_MSGS = [
   {
     role: "assistant",
@@ -27,11 +94,12 @@ const INITIAL_MSGS = [
   },
 ];
 
-export default function ChatWidget({ targets, userId, diets, country, onSaved, mode = "side" }) {
+export default function ChatWidget({ targets, userId, isDemo, diets, country, onSaved, mode = "side" }) {
   const [open, setOpen] = useState(false);
   const [msgs, setMsgs] = useState(INITIAL_MSGS);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [usageInfo, setUsageInfo] = useState(null);
   // Qué tarjeta está guardando: "meal-3" / "weight-3" (una por vez).
   const [saving, setSaving] = useState(null);
   const [width, setWidth] = useState(DEFAULT_W);
@@ -40,6 +108,11 @@ export default function ChatWidget({ targets, userId, diets, country, onSaved, m
   const [photo, setPhoto] = useState(null);
   const [photoError, setPhotoError] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
+  // Grabación de audio (notas de voz estilo Telegram, máx. 30s).
+  const [recording, setRecording] = useState(false);
+  const [recordSeconds, setRecordSeconds] = useState(0);
+  const [audioError, setAudioError] = useState("");
+  const recorderRef = useRef(null);
   // "Tomar foto" solo tiene sentido con cámara trasera (celu). En PC el
   // capture abriría el mismo file picker que la galería: se oculta.
   // Se lee en un efecto (no en el useState) porque en el servidor no hay window.
@@ -118,6 +191,37 @@ export default function ChatWidget({ targets, userId, diets, country, onSaved, m
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [msgs, open]);
 
+  // Carga el uso de mensajes del día al abrir el chat
+  useEffect(() => {
+    if (!open) return;
+    let cancel = false;
+    (async () => {
+      try {
+        const { data } = await getSupabase().auth.getSession();
+        const token = data?.session?.access_token;
+        if (!token) return;
+        const res = await fetch("/api/chat", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok && !cancel) {
+          const json = await res.json();
+          setUsageInfo(json);
+        }
+      } catch {
+        // silencioso
+      }
+    })();
+    return () => {
+      cancel = true;
+    };
+  }, [open]);
+
+  useEffect(() => {
+    return () => {
+      recorderRef.current?.cancel();
+    };
+  }, []);
+
   const onPickFile = async (e) => {
     setMenuOpen(false);
     const f = e.target.files?.[0];
@@ -137,10 +241,53 @@ export default function ChatWidget({ targets, userId, diets, country, onSaved, m
     }
   };
 
-  const send = async (e) => {
+  const cancelRecording = () => {
+    if (recorderRef.current) {
+      recorderRef.current.cancel();
+      recorderRef.current = null;
+    }
+    setRecording(false);
+    setRecordSeconds(0);
+  };
+
+  const stopAndSendAudio = async () => {
+    const rec = recorderRef.current;
+    if (!rec) return;
+    setRecording(false);
+    recorderRef.current = null;
+    const result = await rec.stop();
+    if (!result || !result.dataUrl) return;
+    await send(null, { audio: result.dataUrl, audioDuration: result.duration });
+  };
+
+  const startRecording = async () => {
+    setAudioError("");
+    setPhotoError("");
+    setMenuOpen(false);
+    try {
+      const rec = new VoiceRecorder();
+      recorderRef.current = rec;
+      await rec.start({
+        onTick: (s) => setRecordSeconds(s),
+        onAutoStop: () => {
+          stopAndSendAudio();
+        },
+      });
+      setRecording(true);
+      setRecordSeconds(0);
+    } catch (err) {
+      setAudioError(err.message || "No se pudo acceder al micrófono.");
+      recorderRef.current = null;
+      setRecording(false);
+    }
+  };
+
+  const send = async (e, extra = {}) => {
     e?.preventDefault();
     const text = input.trim();
-    if ((!text && !photo) || sending) return;
+    const voice = extra?.audio || null;
+    const voiceDuration = extra?.audioDuration || 0;
+    if ((!text && !photo && !voice) || sending) return;
     setInput("");
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
@@ -149,7 +296,17 @@ export default function ChatWidget({ targets, userId, diets, country, onSaved, m
     // con visión (paso 11). En el hilo queda visible igual.
     const shot = photo;
     setPhoto(null);
-    const next = [...msgs, { role: "user", content: text, image: shot }];
+    setAudioError("");
+    const next = [
+      ...msgs,
+      {
+        role: "user",
+        content: text,
+        image: shot,
+        audio: voice,
+        audioDuration: voiceDuration,
+      },
+    ];
     setMsgs(next);
     setSending(true);
     try {
@@ -164,6 +321,7 @@ export default function ChatWidget({ targets, userId, diets, country, onSaved, m
         body: JSON.stringify({
           messages: next.slice(-20).map(({ role, content }) => ({ role, content })),
           image: shot,
+          audio: voice,
           targets: targets
             ? {
                 calories: targets.calories,
@@ -183,7 +341,17 @@ export default function ChatWidget({ targets, userId, diets, country, onSaved, m
       if (!r.ok) {
         const e = new Error(out.error || `Error ${r.status}`);
         e.code = out.code || "";
+        e.limit = out.limit;
+        e.used = out.used;
         throw e;
+      }
+      if (typeof out.used === "number") {
+        setUsageInfo({
+          used: out.used,
+          limit: out.limit,
+          remaining: out.remaining,
+          isDemo: out.isDemo,
+        });
       }
       setMsgs((m) => [
         ...m,
@@ -195,6 +363,14 @@ export default function ChatWidget({ targets, userId, diets, country, onSaved, m
         },
       ]);
     } catch (err) {
+      if (typeof err.limit === "number") {
+        setUsageInfo((prev) => ({
+          ...prev,
+          used: err.used ?? err.limit,
+          limit: err.limit,
+          remaining: 0,
+        }));
+      }
       // El límite de la demo se muestra como tarjeta con CTA, no como error.
       setMsgs((m) => [
         ...m,
@@ -216,7 +392,9 @@ export default function ChatWidget({ targets, userId, diets, country, onSaved, m
     if (!est || saving !== null) return;
     setSaving(`meal-${idx}`);
     try {
-      await addMeal(userId, est);
+      // Demo: la comida queda en el sandbox de la pestaña, no en la DB.
+      if (isDemo) addDemoMeal(est);
+      else await addMeal(userId, est);
       setMsgs((all) =>
         all.map((m, i) => (i === idx ? { ...m, saved: true, saveError: "" } : m))
       );
@@ -247,7 +425,8 @@ export default function ChatWidget({ targets, userId, diets, country, onSaved, m
     if (!w || saving !== null) return;
     setSaving(`weight-${idx}`);
     try {
-      await addWeight(userId, w.weight);
+      if (isDemo) upsertDemoWeight(w.weight);
+      else await addWeight(userId, w.weight);
       setMsgs((all) =>
         all.map((m, i) =>
           i === idx ? { ...m, weightSaved: true, weightError: "" } : m
@@ -274,10 +453,12 @@ export default function ChatWidget({ targets, userId, diets, country, onSaved, m
 
   const newChat = () => {
     if (sending) return;
+    if (recording) cancelRecording();
     setMsgs(INITIAL_MSGS);
     setInput("");
     setPhoto(null);
     setPhotoError("");
+    setAudioError("");
     setSaving(null);
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
@@ -329,7 +510,23 @@ export default function ChatWidget({ targets, userId, diets, country, onSaved, m
         />
         <div className="chat-head">
           <div>
-            <div className="chat-title">🤖 Asistente AI</div>
+            <div className="chat-title-row">
+              <span className="chat-title">🤖 Asistente AI</span>
+              {usageInfo && (
+                <span
+                  className={`chat-usage-badge${
+                    usageInfo.remaining === 0
+                      ? " danger"
+                      : usageInfo.remaining <= 3
+                      ? " warn"
+                      : ""
+                  }`}
+                  title={`${usageInfo.remaining} mensajes restantes hoy`}
+                >
+                  mensajes usados {usageInfo.used}/{usageInfo.limit}
+                </span>
+              )}
+            </div>
             <div className="chat-sub">
               Estimaciones, no consejo médico
             </div>
@@ -365,6 +562,9 @@ export default function ChatWidget({ targets, userId, diets, country, onSaved, m
                   src={m.image}
                   alt="Foto adjunta de la comida"
                 />
+              )}
+              {m.audio && (
+                <AudioBubble src={m.audio} duration={m.audioDuration} />
               )}
               {!!m.content && <div className="chat-bubble">{m.content}</div>}
               {m.code === "demo_limit" && (
@@ -471,68 +671,106 @@ export default function ChatWidget({ targets, userId, diets, country, onSaved, m
           </div>
         )}
         {photoError && <div className="chat-photo-err">⚠️ {photoError}</div>}
+        {audioError && <div className="chat-photo-err">⚠️ {audioError}</div>}
         <form className="chat-input" onSubmit={send}>
-          <div className="chat-plus-wrap">
-            <button
-              type="button"
-              className="chat-plus"
-              onClick={() => setMenuOpen((v) => !v)}
-              aria-label="Adjuntar foto"
-              aria-expanded={menuOpen}
-              title="Adjuntar foto" 
-            >
-              ...
-            </button>
-            {menuOpen && (
-              <div className="chat-attach-menu" role="menu">
-                {canCamera && (
-                  <button
-                    type="button"
-                    onClick={() => cameraRef.current?.click()}
-                  >
-                    📷 Tomar foto
-                  </button>
-                )}
+          {recording ? (
+            <div className="chat-rec-bar">
+              <span className="chat-rec-dot" />
+              <span className="chat-rec-time">
+                {formatAudioTime(recordSeconds)} / {formatAudioTime(MAX_AUDIO_SECONDS)}
+              </span>
+              <button
+                type="button"
+                className="chat-rec-cancel"
+                onClick={cancelRecording}
+                title="Descartar nota de voz"
+              >
+                ✕ Descartar
+              </button>
+              <button
+                type="button"
+                className="btn chat-rec-send"
+                onClick={stopAndSendAudio}
+                title="Enviar nota de voz"
+              >
+                ➤
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="chat-plus-wrap">
                 <button
                   type="button"
-                  onClick={() => galleryRef.current?.click()}
+                  className="chat-plus"
+                  onClick={() => setMenuOpen((v) => !v)}
+                  aria-label="Adjuntar foto"
+                  aria-expanded={menuOpen}
+                  title="Adjuntar foto" 
                 >
-                  🖼️ Elegir imagen
+                  ...
                 </button>
+                {menuOpen && (
+                  <div className="chat-attach-menu" role="menu">
+                    {canCamera && (
+                      <button
+                        type="button"
+                        onClick={() => cameraRef.current?.click()}
+                      >
+                        📷 Tomar foto
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => galleryRef.current?.click()}
+                    >
+                      🖼️ Elegir imagen
+                    </button>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-          <input
-            type="file"
-            ref={galleryRef}
-            accept="image/*"
-            hidden
-            onChange={onPickFile}
-          />
-          <input
-            type="file"
-            ref={cameraRef}
-            accept="image/*"
-            capture="environment"
-            hidden
-            onChange={onPickFile}
-          />
-          <textarea
-            ref={textareaRef}
-            value={input}
-            onChange={handleInputChange}
-            onKeyDown={handleKeyDown}
-            placeholder="Qué comiste?"
-            maxLength={1000}
-            rows={1}
-          />
-          <button
-            className="btn"
-            type="submit"
-            disabled={sending || (!input.trim() && !photo)}
-          >
-            ➤
-          </button>
+              <button
+                type="button"
+                className="chat-mic-btn"
+                onClick={startRecording}
+                disabled={sending}
+                title="Grabar nota de voz (máx. 30s)"
+                aria-label="Grabar nota de voz"
+              >
+                🎙️
+              </button>
+              <input
+                type="file"
+                ref={galleryRef}
+                accept="image/*"
+                hidden
+                onChange={onPickFile}
+              />
+              <input
+                type="file"
+                ref={cameraRef}
+                accept="image/*"
+                capture="environment"
+                hidden
+                onChange={onPickFile}
+              />
+              <textarea
+                ref={textareaRef}
+                value={input}
+                onChange={handleInputChange}
+                onKeyDown={handleKeyDown}
+                placeholder="Qué comiste?"
+                maxLength={1000}
+                rows={1}
+              />
+              <button
+                className="btn"
+                type="submit"
+                disabled={sending || (!input.trim() && !photo)}
+              >
+                ➤
+              </button>
+            </>
+          )}
         </form>
       </aside>
     </>

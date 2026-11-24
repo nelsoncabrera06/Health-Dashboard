@@ -19,6 +19,15 @@ import {
   sumMacros,
 } from "../../lib/health";
 import { MEAL_PLAN } from "../../lib/mealPlan";
+import {
+  addDemoMeal,
+  deleteDemoMeal,
+  isLocalId,
+  mergeMeals,
+  mergeWeights,
+  readDemoMeals,
+  readDemoWeights,
+} from "../../lib/demoSandbox";
 import ChatWidget from "../../components/ChatWidget";
 import Onboarding from "../../components/Onboarding";
 import ProfileModal from "../../components/ProfileModal";
@@ -130,6 +139,9 @@ function MacroCard({ label, value, target, unit, color, type, info }) {
 
 export default function Dashboard() {
   const { user, ready, signOut } = useAuth();
+  // La demo es una cuenta compartida: sus registros no van a Supabase, van al
+  // sandbox del navegador (lib/demoSandbox.js). El seed de la DB es de lectura.
+  const isDemo = user?.role === "demo";
   const [modalOpen, setModalOpen] = useState(false);
   const [targets, setTargets] = useState(null);
   const [profile, setProfile] = useState(null);
@@ -193,11 +205,29 @@ export default function Dashboard() {
       ]);
       setTargets(t);
       setProfile(prof);
-      setTodayMeals(today);
-      setRecent(rec);
+      // Demo: lo que el visitante registra vive en sessionStorage. Se mergea
+      // con el seed para que el dashboard lo muestre sin tocar la DB.
+      if (user.role === "demo") {
+        const localMeals = readDemoMeals();
+        const localWeights = readDemoWeights();
+        const dayStart = new Date();
+        dayStart.setHours(0, 0, 0, 0);
+        setTodayMeals(
+          mergeMeals(
+            today,
+            localMeals.filter((m) => new Date(m.eaten_at) >= dayStart)
+          )
+        );
+        setRecent(mergeMeals(rec, localMeals).slice(0, 8));
+        setCalMeals(mergeMeals(weekMeals, localMeals));
+        setWeights(mergeWeights(wts, localWeights));
+      } else {
+        setTodayMeals(today);
+        setRecent(rec);
+        setCalMeals(weekMeals);
+        setWeights(wts);
+      }
       setWorkouts(todayW);
-      setCalMeals(weekMeals);
-      setWeights(wts);
     } catch (e) {
       setLoadError(e.message || "No se pudieron cargar los datos.");
     } finally {
@@ -260,7 +290,9 @@ export default function Dashboard() {
     }
     setSaving(true);
     try {
-      await addMeal(user.id, form);
+      // Demo: no escribe en la DB compartida, va al sandbox de la pestaña.
+      if (isDemo) addDemoMeal(form);
+      else await addMeal(user.id, form);
       setForm(EMPTY_FORM);
       setFormOpen(false);
       await load();
@@ -273,7 +305,8 @@ export default function Dashboard() {
 
   const handleDelete = async (id) => {
     try {
-      await deleteMeal(user.id, id);
+      if (isDemo) deleteDemoMeal(id);
+      else await deleteMeal(user.id, id);
       await load();
     } catch (e) {
       setFormError(e.message || "No se pudo borrar.");
@@ -395,6 +428,13 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {isDemo && (
+        <div className="demo-banner">
+          <b>Estás en la demo.</b> Lo que registres queda solo en esta pestaña y
+          se borra al cerrar sesión. Los datos de ejemplo no se modifican.
+        </div>
+      )}
 
       {loadError && (
         <div className="card">
@@ -634,13 +674,15 @@ export default function Dashboard() {
                 <div className="meal-time">{fmtEatenAt(m.eaten_at)}</div>
                 <div className="meal-name">{m.meal}</div>
                 <div className="meal-cal">{Math.round(m.calories)} kcal</div>
-                <button
-                  className="meal-del"
-                  onClick={() => setConfirmMeal(m)}
-                  title="Eliminar esta comida"
-                >
-                  ×
-                </button>
+                {(!isDemo || isLocalId(m.id)) && (
+                  <button
+                    className="meal-del"
+                    onClick={() => setConfirmMeal(m)}
+                    title="Eliminar esta comida"
+                  >
+                    ×
+                  </button>
+                )}
               </div>
             ))}
         </div>
@@ -700,6 +742,7 @@ export default function Dashboard() {
       <ChatWidget
         targets={targets}
         userId={user?.id}
+        isDemo={isDemo}
         diets={profile?.diet_tags}
         country={profile?.country}
         onSaved={load}
