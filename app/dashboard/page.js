@@ -431,8 +431,7 @@ export default function Dashboard() {
 
       {isDemo && (
         <div className="demo-banner">
-          <b>Estás en la demo.</b> Lo que registres queda solo en esta pestaña y
-          se borra al cerrar sesión. Los datos de ejemplo no se modifican.
+          <b>Estás en la demo.</b> Lo que registres se borra al cerrar sesión. Los datos de ejemplo no se modifican.
         </div>
       )}
 
