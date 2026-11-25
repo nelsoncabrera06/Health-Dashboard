@@ -4,7 +4,13 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { getSupabase } from "../lib/supabaseClient";
 import { useAuth } from "./AuthContext";
-import { activityLabel, countryLabel, dietLabel, sexLabel } from "../lib/profile";
+import {
+  activityDetail,
+  activityLabel,
+  countryLabel,
+  dietLabel,
+  sexLabel,
+} from "../lib/profile";
 
 // Una línea de la lista: "Etiqueta: valor", todo alineado a la izquierda. Se lee
 // como un JSON y ocupa mucho menos alto que la fila con el valor en la punta
@@ -12,10 +18,10 @@ import { activityLabel, countryLabel, dietLabel, sexLabel } from "../lib/profile
 function Row({ label, value, color, sub }) {
   return (
     <div className="profile-row">
-      <span className="profile-row-label">{label}:</span>
+      <span className="profile-row-label">{label}:</span>{" "}
       <span className="profile-row-value" style={color ? { color } : undefined}>
         {value}
-        {sub && <span className="profile-row-sub">{sub}</span>}
+        {sub && <span className="profile-row-sub"> {sub}</span>}
       </span>
     </div>
   );
@@ -213,6 +219,11 @@ export default function ProfileModal({
                       <Row
                         label="Actividad"
                         value={activityLabel(profile.activity)}
+                        sub={
+                          activityDetail(profile.activity)
+                            ? `(${activityDetail(profile.activity)})`
+                            : ""
+                        }
                       />
                     )}
                   </Group>

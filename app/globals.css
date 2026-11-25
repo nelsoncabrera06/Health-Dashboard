@@ -993,8 +993,7 @@ body.chat-resizing { user-select: none; transition: none; }
   font-size: 14px; font-weight: 600; line-height: 1.45;
 }
 .profile-row-sub {
-  font-size: 11.5px; font-weight: 400;
-  color: var(--muted); margin-left: 5px;
+  font-size: 11.5px; font-weight: 400; color: var(--muted);
 }
 .profile-row .diet-tags { margin-left: 0; }
 
