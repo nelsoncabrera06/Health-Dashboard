@@ -9,6 +9,11 @@ import { requireAdmin } from "../../../../lib/api/admin";
 import { apiError } from "../../../../lib/api/log";
 import { MODELS, PROVIDER_LABELS } from "../../../../lib/aiCatalog";
 import {
+  VOICE_PROVIDERS,
+  envVoiceConfig,
+  voiceProviderHasKey,
+} from "../../../../lib/voiceCatalog";
+import {
   envAiConfig,
   getAiConfig,
   providerHasKey,
@@ -32,6 +37,21 @@ function providersWithKey() {
   return out;
 }
 
+// La voz es solo lectura: se configura por entorno. Se muestra igual para que
+// el admin sepa con qué provider/modelo se transcriben las notas.
+function voiceState() {
+  return {
+    current: envVoiceConfig(),
+    providers: VOICE_PROVIDERS.map((p) => ({
+      provider: p.provider,
+      label: p.label,
+      note: p.note,
+      hasKey: voiceProviderHasKey(p.provider),
+      models: p.models,
+    })),
+  };
+}
+
 // Devolver el estado completo después de cada cambio evita un refetch en la UI.
 async function state() {
   return {
@@ -39,6 +59,7 @@ async function state() {
     fallback: envAiConfig(),
     catalog: MODELS,
     providers: providersWithKey(),
+    voice: voiceState(),
   };
 }
 

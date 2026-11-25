@@ -1211,6 +1211,8 @@ body.chat-resizing { user-select: none; transition: none; }
   background: var(--card2); border: 1px solid var(--border); color: var(--text);
 }
 .admin-card:hover:not(:disabled) { border-color: var(--blue); }
+.admin-card.static { cursor: default; }
+.admin-card.static:not(.active):hover { border-color: var(--border); }
 .admin-card.active { border-color: var(--green); box-shadow: inset 0 0 0 1px var(--green); }
 .admin-card:disabled { opacity: .55; cursor: default; }
 .admin-card-name { font-size: 13px; font-weight: 700; }
@@ -1225,7 +1227,33 @@ body.chat-resizing { user-select: none; transition: none; }
 }
 .admin-badge.on { color: var(--green); border-color: var(--green); }
 .admin-badge.off { color: var(--yellow); border-color: var(--yellow); }
+/* Encabezado intermedio: separa "Providers de chat" del título de la sección,
+   sin competir con el h2 ni confundirse con los nombres de provider (h3). */
+.admin-subhead {
+  margin-top: 22px; margin-bottom: 10px;
+  font-size: 14px; font-weight: 700; color: var(--text);
+}
+.admin-subhead::after {
+  content: ""; display: block; height: 1px;
+  margin-top: 8px; background: var(--border);
+}
 .admin-note { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.admin-subsection {
+  margin-top: 26px; padding-top: 22px;
+  border-top: 1px solid var(--border);
+}
+/* El texto de la izquierda puede crecer; el botón de la derecha no debe caer a
+   otra línea por eso (ej. "Volver al default" en /admin). */
+.admin-panel .conn-section-head > div { flex: 1 1 0; min-width: 0; }
+.admin-inline-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px; color: var(--text);
+  background: rgba(255, 255, 255, .07);
+  padding: 1px 5px; border-radius: 5px;
+}
+.admin-warn {
+  margin-top: 8px; font-size: 12px; color: var(--yellow); line-height: 1.5;
+}
 
 /* El "brand" del header (/admin y /api-keys) es un link al dashboard: sin
    subrayado ni azul de enlace, igual que el título del dashboard. */

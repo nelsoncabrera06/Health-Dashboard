@@ -367,10 +367,11 @@ export default function AdminPage() {
 
               <div className="conn-section-head">
                 <div>
-                  <h2 className="conn-h2">Modelo de AI</h2>
+                  <h2 className="conn-h2">Modelo de AI del chat</h2>
                   <p className="conn-sub">
-                    Los macros los estima el modelo; el registro de la comida lo
-                    hace el botón de la UI.
+                    Gemini (Google) y OpenRouter son los providers del chat:
+                    responden el texto y las fotos, y estiman los macros. El
+                    registro de la comida lo hace el botón de la UI.
                   </p>
                   {data?.current && (
                     <p className="admin-current">
@@ -396,6 +397,8 @@ export default function AdminPage() {
                   </button>
                 )}
               </div>
+
+              <p className="admin-subhead">Providers de chat</p>
 
               {Object.entries(groups).map(([provider, models]) => {
                 const info = data?.providers?.[provider];
@@ -467,6 +470,81 @@ export default function AdminPage() {
                   Default del entorno: {fallbackProvider || data.fallback.provider}{" "}
                   · <code className="admin-card-id">{data.fallback.model}</code>
                 </p>
+              )}
+
+              {data?.voice && (
+                <div className="admin-subsection">
+                  <div className="conn-section-head">
+                    <div>
+                      <h2 className="conn-h2">Providers de voz</h2>
+                      <p className="conn-sub">
+                        Transcriben las notas de voz antes de que el chat las
+                        lea, así la voz funciona con cualquier modelo del chat.
+                        Hoy se configura por entorno (<code className="admin-inline-code">GROQ_STT_MODEL</code>).
+                      </p>
+                    </div>
+                  </div>
+
+                  {data.voice.providers.map((p) => {
+                    const current =
+                      data.voice.current?.provider === p.provider
+                        ? data.voice.current.model
+                        : null;
+                    return (
+                      <div className="admin-provider" key={p.provider}>
+                        <div className="admin-provider-head">
+                          <h3 className="admin-h3">{p.label}</h3>
+                          {p.hasKey ? (
+                            <span className="admin-badge on">API key cargada</span>
+                          ) : (
+                            <span className="admin-badge off">
+                              sin API key en el servidor
+                            </span>
+                          )}
+                          <span className="admin-badge">desde el entorno</span>
+                        </div>
+
+                        <div className="admin-grid">
+                          {(p.models || []).map((m) => {
+                            const active = current === m.model;
+                            return (
+                              <div
+                                key={m.model}
+                                className={`admin-card static${active ? " active" : ""}`}
+                              >
+                                <div className="admin-card-name">{m.label}</div>
+                                <div className="admin-card-id">{m.model}</div>
+                                <div className="admin-badges">
+                                  {active ? (
+                                    <span className="admin-badge on">En uso</span>
+                                  ) : (
+                                    <span className="admin-badge">
+                                      Disponible
+                                    </span>
+                                  )}
+                                </div>
+                                {m.note && (
+                                  <div className="admin-note">{m.note}</div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {p.note && <p className="admin-note">{p.note}</p>}
+
+                        {!p.hasKey && (
+                          <p className="admin-warn">
+                            Sin API key las notas de voz no se pueden transcribir.
+                            Cargá{" "}
+                            <code className="admin-inline-code">GROQ_API_KEY</code>{" "}
+                            en el servidor.
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               )}
             </section>
           ) : (
