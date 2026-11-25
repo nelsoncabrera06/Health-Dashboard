@@ -1,6 +1,10 @@
 "use client";
 
-// /admin — configuración global de la app. Hoy: el modelo de AI.
+// /admin — panel de administración.
+//
+// Hoy tiene dos tabs:
+//   1. "AI & API keys" → modelo global del chat (el contenido original).
+//   2. "Usuarios"      → listado de cuentas, edición de rol/tier/estado y borrado.
 //
 // Solo `role = 'admin'`. El link del menú se oculta a los demás, pero la
 // seguridad real está en la API (lib/api/admin.js): sesión de la web, rol admin
@@ -22,15 +26,52 @@ function priceLabel(price) {
   return `US$ ${price.input} / ${price.output} por 1M`;
 }
 
+function fmtDate(value) {
+  if (!value) return "—";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString("es-AR", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+const ROLE_LABELS = { user: "Usuario", admin: "Admin", demo: "Demo" };
+const TIER_LABELS = { free: "Free", pro: "Pro", premium: "Premium" };
+const STATUS_LABELS = { active: "Activo", trial: "Trial", canceled: "Cancelado" };
+
+// Respaldo si el GET de usuarios aún no llegó: la UI no depende de la API para
+// dibujar los selects.
+const DEFAULT_OPTIONS = {
+  roles: ["user", "admin", "demo"],
+  tiers: ["free", "pro", "premium"],
+  statuses: ["active", "trial", "canceled"],
+};
+
 export default function AdminPage() {
   const { user, ready, signOut } = useAuth();
   const router = useRouter();
+
+  const [tab, setTab] = useState("ai");
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState("");
   const [error, setError] = useState("");
   const [blockedCode, setBlockedCode] = useState("");
+
+  // Tab Usuarios
+  const [users, setUsers] = useState([]);
+  const [usersLoading, setUsersLoading] = useState(true);
+  const [usersError, setUsersError] = useState("");
+  const [options, setOptions] = useState(DEFAULT_OPTIONS);
+  const [editing, setEditing] = useState(null); // usuario en el modal
+  const [editForm, setEditForm] = useState({ role: "", tier: "", status: "" });
+  const [modalSaving, setModalSaving] = useState(false);
+  const [modalError, setModalError] = useState("");
+  const [deleting, setDeleting] = useState(null); // usuario a confirmar
+  const [deleteError, setDeleteError] = useState("");
 
   // Aviso efímero, mismo patrón que /api-keys.
   const [toast, setToast] = useState("");
@@ -71,12 +112,38 @@ export default function AdminPage() {
     }
   }, [user, token]);
 
+  const loadUsers = useCallback(async () => {
+    if (!user) return;
+    setUsersLoading(true);
+    setUsersError("");
+    try {
+      const t = await token();
+      if (!t) throw new Error("Sesión inválida. Volvé a iniciar sesión.");
+      const res = await fetch("/api/admin/users", {
+        headers: { Authorization: `Bearer ${t}` },
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok)
+        throw new Error(apiMessage(body, "No se pudo cargar la lista de usuarios."));
+      setUsers(body.users || []);
+      if (body.options) setOptions(body.options);
+    } catch (err) {
+      setUsersError(err.message || "No se pudo cargar la lista de usuarios.");
+    } finally {
+      setUsersLoading(false);
+    }
+  }, [user, token]);
+
   useEffect(() => {
     if (ready && !user) router.replace("/");
   }, [ready, user, router]);
   useEffect(() => {
     load();
   }, [load]);
+  // El contador de la tab tiene que estar listo antes de abrirla.
+  useEffect(() => {
+    loadUsers();
+  }, [loadUsers]);
 
   const choose = async (entry) => {
     if (saving) return;
@@ -124,6 +191,84 @@ export default function AdminPage() {
       setError(err.message || "No se pudo volver al default del entorno.");
     } finally {
       setSaving("");
+    }
+  };
+
+  const openEdit = (u) => {
+    setModalError("");
+    setEditForm({ role: u.role, tier: u.tier, status: u.status });
+    setEditing(u);
+  };
+
+  const closeEdit = () => {
+    if (modalSaving) return;
+    setEditing(null);
+    setModalError("");
+  };
+
+  const saveEdit = async () => {
+    if (!editing || modalSaving) return;
+    setModalSaving(true);
+    setModalError("");
+    try {
+      const t = await token();
+      const res = await fetch("/api/admin/users", {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${t}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ id: editing.id, ...editForm }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok)
+        throw new Error(apiMessage(body, "No se pudo guardar el cambio."));
+      setUsers((prev) =>
+        prev.map((u) => (u.id === editing.id ? { ...u, ...body.user } : u))
+      );
+      setEditing(null);
+      showToast("Usuario actualizado.");
+    } catch (err) {
+      setModalError(err.message || "No se pudo guardar el cambio.");
+    } finally {
+      setModalSaving(false);
+    }
+  };
+
+  const openDelete = (u) => {
+    setDeleteError("");
+    setDeleting(u);
+  };
+
+  const closeDelete = () => {
+    setDeleting(null);
+    setDeleteError("");
+  };
+
+  const confirmDelete = async () => {
+    if (!deleting) return;
+    setModalSaving(true);
+    setDeleteError("");
+    try {
+      const t = await token();
+      const res = await fetch("/api/admin/delete-user", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${t}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ targetId: deleting.id }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok)
+        throw new Error(apiMessage(body, "No se pudo eliminar el usuario."));
+      setUsers((prev) => prev.filter((u) => u.id !== deleting.id));
+      setDeleting(null);
+      showToast("Usuario eliminado.");
+    } catch (err) {
+      setDeleteError(err.message || "No se pudo eliminar el usuario.");
+    } finally {
+      setModalSaving(false);
     }
   };
 
@@ -182,124 +327,417 @@ export default function AdminPage() {
         </div>
       ) : (
         <>
-          {error && <p className="auth-error conn-error">{error}</p>}
+          <div className="admin-tabs" role="tablist" aria-label="Secciones de administración">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === "ai"}
+              className={`admin-tab${tab === "ai" ? " active" : ""}`}
+              onClick={() => setTab("ai")}
+            >
+              AI &amp; API keys
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === "users"}
+              className={`admin-tab${tab === "users" ? " active" : ""}`}
+              onClick={() => setTab("users")}
+            >
+              Usuarios
+              <span className="admin-tab-count-group">
+                <span className="admin-tab-count-sep">:</span>
+                <span className="admin-tab-count-plain">
+                  {usersLoading ? "—" : users.length}
+                </span>
+              </span>
+            </button>
+          </div>
 
-          <p className="conn-intro">
-            Elegí el modelo que usa el asistente para todos. Se aplica al mensaje
-            siguiente, sin deploy: la elección se guarda en la base y el chat la
-            lee en cada pedido. Si el modelo es pago, el gasto lo cubre la API key
-            del servidor (OpenRouter tiene tope de US$ 1).
-          </p>
+          {tab === "ai" ? (
+            <section className="admin-panel" role="tabpanel" aria-label="AI y API keys">
+              {error && <p className="auth-error conn-error">{error}</p>}
 
-          <section className="card conn-section">
-            <div className="conn-section-head">
-              <div>
-                <h2 className="conn-h2">Modelo de AI</h2>
-                <p className="conn-sub">
-                  Los macros los estima el modelo; el registro de la comida lo
-                  hace el botón de la UI.
-                </p>
-                {data?.current && (
-                  <p className="admin-current">
-                    Ahora:{" "}
-                    <b>{currentEntry?.label || data.current.model}</b>{" "}
-                    <code className="admin-card-id">{data.current.model}</code>{" "}
-                    <span className="admin-badge">
-                      {data.current.source === "panel"
-                        ? "elegido en el panel"
-                        : "default del entorno"}
-                    </span>
+              <p className="conn-intro">
+                Elegí el modelo que usa el asistente para todos. Se aplica al
+                mensaje siguiente, sin deploy: la elección se guarda en la base y
+                el chat la lee en cada pedido. Si el modelo es pago, el gasto lo
+                cubre la API key del servidor (OpenRouter tiene tope de US$ 1).
+              </p>
+
+              <div className="conn-section-head">
+                <div>
+                  <h2 className="conn-h2">Modelo de AI</h2>
+                  <p className="conn-sub">
+                    Los macros los estima el modelo; el registro de la comida lo
+                    hace el botón de la UI.
                   </p>
+                  {data?.current && (
+                    <p className="admin-current">
+                      Ahora:{" "}
+                      <b>{currentEntry?.label || data.current.model}</b>{" "}
+                      <code className="admin-card-id">{data.current.model}</code>{" "}
+                      <span className="admin-badge">
+                        {data.current.source === "panel"
+                          ? "elegido en el panel"
+                          : "default del entorno"}
+                      </span>
+                    </p>
+                  )}
+                </div>
+                {data?.current?.source === "panel" && (
+                  <button
+                    className="btn btn-secondary"
+                    onClick={reset}
+                    disabled={Boolean(saving)}
+                    title={`Volver a ${data.fallback?.model || "el default"}`}
+                  >
+                    {saving === "reset" ? "Volviendo…" : "Volver al default"}
+                  </button>
                 )}
               </div>
-              {data?.current?.source === "panel" && (
-                <button
-                  className="btn btn-secondary"
-                  onClick={reset}
-                  disabled={Boolean(saving)}
-                  title={`Volver a ${data.fallback?.model || "el default"}`}
-                >
-                  {saving === "reset" ? "Volviendo…" : "Volver al default"}
-                </button>
-              )}
-            </div>
 
-            {Object.entries(groups).map(([provider, models]) => {
-              const info = data?.providers?.[provider];
-              return (
-                <div className="admin-provider" key={provider}>
-                  <div className="admin-provider-head">
-                    <h3 className="admin-h3">{info?.label || provider}</h3>
-                    {!info?.hasKey && (
-                      <span className="admin-badge off">
-                        sin API key en el servidor
-                      </span>
-                    )}
-                  </div>
-                  <div className="admin-grid">
-                    {models.map((m) => {
-                      const active =
-                        data?.current?.provider === m.provider &&
-                        data?.current?.model === m.model;
-                      const busy = saving === `${m.provider}:${m.model}`;
-                      const usable = Boolean(info?.hasKey);
-                      return (
-                        <button
-                          key={m.model}
-                          type="button"
-                          className={`admin-card${active ? " active" : ""}`}
-                          onClick={() => choose(m)}
-                          disabled={!usable || Boolean(saving)}
-                          aria-pressed={active}
-                          title={
-                            usable
-                              ? m.note || "Usar este modelo para todos"
-                              : "Falta la API key de este provider en el servidor"
-                          }
-                        >
-                          <div className="admin-card-name">{m.label}</div>
-                          <div className="admin-card-id">{m.model}</div>
-                          <div className="admin-badges">
-                            <span
-                              className={`admin-badge${
-                                m.price ? "" : " on"
-                              }`}
-                            >
-                              {priceLabel(m.price)}
-                            </span>
-                            <span
-                              className={`admin-badge${
-                                m.vision ? "" : " off"
-                              }`}
-                            >
-                              {m.vision ? "Con visión" : "Sin visión"}
-                            </span>
-                            {active && (
-                              <span className="admin-badge on">
-                                {busy ? "Guardando…" : "Activo"}
+              {Object.entries(groups).map(([provider, models]) => {
+                const info = data?.providers?.[provider];
+                return (
+                  <div className="admin-provider" key={provider}>
+                    <div className="admin-provider-head">
+                      <h3 className="admin-h3">{info?.label || provider}</h3>
+                      {!info?.hasKey && (
+                        <span className="admin-badge off">
+                          sin API key en el servidor
+                        </span>
+                      )}
+                    </div>
+                    <div className="admin-grid">
+                      {models.map((m) => {
+                        const active =
+                          data?.current?.provider === m.provider &&
+                          data?.current?.model === m.model;
+                        const busy = saving === `${m.provider}:${m.model}`;
+                        const usable = Boolean(info?.hasKey);
+                        return (
+                          <button
+                            key={m.model}
+                            type="button"
+                            className={`admin-card${active ? " active" : ""}`}
+                            onClick={() => choose(m)}
+                            disabled={!usable || Boolean(saving)}
+                            aria-pressed={active}
+                            title={
+                              usable
+                                ? m.note || "Usar este modelo para todos"
+                                : "Falta la API key de este provider en el servidor"
+                            }
+                          >
+                            <div className="admin-card-name">{m.label}</div>
+                            <div className="admin-card-id">{m.model}</div>
+                            <div className="admin-badges">
+                              <span
+                                className={`admin-badge${
+                                  m.price ? "" : " on"
+                                }`}
+                              >
+                                {priceLabel(m.price)}
                               </span>
-                            )}
-                          </div>
-                          {m.note && (
-                            <div className="admin-note">{m.note}</div>
-                          )}
-                        </button>
-                      );
-                    })}
+                              <span
+                                className={`admin-badge${
+                                  m.vision ? "" : " off"
+                                }`}
+                              >
+                                {m.vision ? "Con visión" : "Sin visión"}
+                              </span>
+                              {active && (
+                                <span className="admin-badge on">
+                                  {busy ? "Guardando…" : "Activo"}
+                                </span>
+                              )}
+                            </div>
+                            {m.note && <div className="admin-note">{m.note}</div>}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
 
-            {data?.fallback && (
-              <p className="admin-note">
-                Default del entorno:{" "}
-                {fallbackProvider || data.fallback.provider} ·{" "}
-                <code className="admin-card-id">{data.fallback.model}</code>
-              </p>
-            )}
-          </section>
+              {data?.fallback && (
+                <p className="admin-note">
+                  Default del entorno: {fallbackProvider || data.fallback.provider}{" "}
+                  · <code className="admin-card-id">{data.fallback.model}</code>
+                </p>
+              )}
+            </section>
+          ) : (
+            <section className="admin-panel" role="tabpanel" aria-label="Usuarios">
+              <div className="admin-users-head">
+                <div>
+                  <h2 className="conn-h2">Usuarios</h2>
+                  <p className="conn-sub">
+                    {usersLoading
+                      ? "Cargando…"
+                      : `${users.length} ${
+                          users.length === 1 ? "usuario registrado" : "usuarios registrados"
+                        }`}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={loadUsers}
+                  disabled={usersLoading}
+                >
+                  {usersLoading ? "Actualizando…" : "Actualizar"}
+                </button>
+              </div>
+
+              {usersError && (
+                <p className="auth-error conn-error">{usersError}</p>
+              )}
+
+              <div className="admin-table-wrap">
+                <table className="admin-users-table">
+                  <thead>
+                    <tr>
+                      <th>Email</th>
+                      <th>Nombre</th>
+                      <th>Rol</th>
+                      <th>Tier</th>
+                      <th>Estado</th>
+                      <th>Creado</th>
+                      <th>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {usersLoading && users.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="admin-table-empty">
+                          Cargando usuarios…
+                        </td>
+                      </tr>
+                    ) : users.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="admin-table-empty">
+                          No hay usuarios registrados.
+                        </td>
+                      </tr>
+                    ) : (
+                      users.map((u) => {
+                        const self = u.id === user?.id;
+                        const isDemo = u.role === "demo";
+                        return (
+                          <tr key={u.id}>
+                            <td className="admin-user-email">{u.email || "—"}</td>
+                            <td>{u.display_name || u.username || "—"}</td>
+                            <td>
+                              <span className={`admin-role ${u.role}`}>
+                                {ROLE_LABELS[u.role] || u.role}
+                              </span>
+                            </td>
+                            <td>{TIER_LABELS[u.tier] || u.tier || "—"}</td>
+                            <td>
+                              <span className={`admin-status ${u.status}`}>
+                                {STATUS_LABELS[u.status] || u.status || "—"}
+                              </span>
+                            </td>
+                            <td className="admin-user-date">{fmtDate(u.created_at)}</td>
+                            <td className="admin-user-actions">
+                              {self ? (
+                                <span className="admin-own">Tu cuenta</span>
+                              ) : (
+                                <>
+                                  <button
+                                    type="button"
+                                    className="admin-mini-btn"
+                                    onClick={() => openEdit(u)}
+                                  >
+                                    Editar
+                                  </button>
+                                  {isDemo ? (
+                                    <span className="admin-own">No se borra</span>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      className="admin-mini-btn danger"
+                                      onClick={() => openDelete(u)}
+                                    >
+                                      Eliminar
+                                    </button>
+                                  )}
+                                </>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
         </>
+      )}
+
+      {editing && (
+        <div className="onb-overlay" onClick={closeEdit}>
+          <div
+            className="onb-card admin-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Editar usuario"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="onb-head">
+              <div>
+                <div className="onb-title">Editar usuario</div>
+                <div className="onb-sub">
+                  {editing.email || editing.username || "Sin email"}
+                </div>
+              </div>
+              <button
+                type="button"
+                className="onb-x"
+                onClick={closeEdit}
+                aria-label="Cerrar"
+                disabled={modalSaving}
+              >
+                ×
+              </button>
+            </div>
+            <div className="onb-body">
+              <div className="onb-grid">
+                <label className="onb-field">
+                  <span>Rol</span>
+                  <select
+                    value={editForm.role}
+                    disabled={editing.role === "demo"}
+                    onChange={(e) =>
+                      setEditForm((f) => ({ ...f, role: e.target.value }))
+                    }
+                  >
+                    {options.roles.map((r) => (
+                      <option key={r} value={r}>
+                        {ROLE_LABELS[r] || r}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="onb-field">
+                  <span>Tier</span>
+                  <select
+                    value={editForm.tier}
+                    onChange={(e) =>
+                      setEditForm((f) => ({ ...f, tier: e.target.value }))
+                    }
+                  >
+                    {options.tiers.map((t) => (
+                      <option key={t} value={t}>
+                        {TIER_LABELS[t] || t}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="onb-field">
+                  <span>Estado</span>
+                  <select
+                    value={editForm.status}
+                    onChange={(e) =>
+                      setEditForm((f) => ({ ...f, status: e.target.value }))
+                    }
+                  >
+                    {options.statuses.map((s) => (
+                      <option key={s} value={s}>
+                        {STATUS_LABELS[s] || s}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              {editing.role === "demo" && (
+                <p className="admin-modal-hint">
+                  La cuenta demo es pública: su rol no se puede cambiar. Plan y
+                  estado sí.
+                </p>
+              )}
+              {modalError && <p className="auth-error">{modalError}</p>}
+            </div>
+            <div className="onb-foot">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={closeEdit}
+                disabled={modalSaving}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="btn"
+                onClick={saveEdit}
+                disabled={modalSaving}
+              >
+                {modalSaving ? "Guardando…" : "Guardar cambios"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleting && (
+        <div className="onb-overlay" onClick={closeDelete}>
+          <div
+            className="onb-card admin-modal confirm-card"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Eliminar usuario"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="onb-head">
+              <div>
+                <div className="onb-title">¿Eliminar usuario?</div>
+                <div className="onb-sub">
+                  {deleting.email || deleting.username || "Sin email"}
+                </div>
+              </div>
+              <button
+                type="button"
+                className="onb-x"
+                onClick={closeDelete}
+                aria-label="Cerrar"
+                disabled={modalSaving}
+              >
+                ×
+              </button>
+            </div>
+            <div className="onb-body">
+              <p className="admin-modal-text">
+                Se borran la cuenta y todos sus registros (comidas, pesos y
+                entrenamientos). Esta acción no se puede deshacer.
+              </p>
+              {deleteError && <p className="auth-error">{deleteError}</p>}
+            </div>
+            <div className="onb-foot">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={closeDelete}
+                disabled={modalSaving}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="btn btn-danger"
+                onClick={confirmDelete}
+                disabled={modalSaving}
+              >
+                {modalSaving ? "Eliminando…" : "Sí, eliminar"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {toast && (
