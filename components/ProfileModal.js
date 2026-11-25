@@ -6,15 +6,27 @@ import { getSupabase } from "../lib/supabaseClient";
 import { useAuth } from "./AuthContext";
 import { activityLabel, countryLabel, dietLabel, sexLabel } from "../lib/profile";
 
-function Stat({ label, value, color, sub }) {
+// Una línea de la lista: "Etiqueta: valor", todo alineado a la izquierda. Se lee
+// como un JSON y ocupa mucho menos alto que la fila con el valor en la punta
+// derecha (que obligaba a recorrer toda la caja con la vista).
+function Row({ label, value, color, sub }) {
   return (
-    <div>
-      <div className="stat-label">{label}</div>
-      <div className="stat-value" style={color ? { color } : undefined}>
+    <div className="profile-row">
+      <span className="profile-row-label">{label}:</span>
+      <span className="profile-row-value" style={color ? { color } : undefined}>
         {value}
-      </div>
-      {sub && <div className="stat-sub">{sub}</div>}
+        {sub && <span className="profile-row-sub">{sub}</span>}
+      </span>
     </div>
+  );
+}
+
+function Group({ title, children }) {
+  return (
+    <section className="profile-group">
+      <div className="profile-group-title">{title}</div>
+      <div className="profile-list">{children}</div>
+    </section>
   );
 }
 
@@ -88,6 +100,20 @@ export default function ProfileModal({
   const weight = currentWeight ? Number(currentWeight) : null;
   const goal = profile?.goal_weight_kg ? Number(profile.goal_weight_kg) : null;
 
+  // Un perfil recién creado puede no tener nada cargado todavía: sin esto
+  // quedarían cajas vacías.
+  const hasBody =
+    Boolean(profile?.height_cm) ||
+    Boolean(weight) ||
+    Boolean(profile?.age) ||
+    Boolean(sexLabel(profile?.sex)) ||
+    Boolean(profile?.country);
+  const hasGoals =
+    Boolean(goal) ||
+    Boolean(profile?.tdee) ||
+    Boolean(profile?.calories_target) ||
+    Boolean(profile?.activity);
+
   return (
     <div className="onb-overlay" onClick={close}>
       <div
@@ -117,72 +143,97 @@ export default function ProfileModal({
             <p className="muted">Cargando…</p>
           ) : (
             <>
-              <div className="stat-grid">
-                {profile.height_cm && (
-                  <Stat label="Altura" value={`${profile.height_cm} cm`} />
+              <div className="profile-body">
+                {hasBody && (
+                  <Group title="Cuerpo">
+                    {profile.height_cm && (
+                      <Row label="Altura" value={`${profile.height_cm} cm`} />
+                    )}
+                    {weight && <Row label="Peso actual" value={`${weight} kg`} />}
+                    {profile.height_cm && weight && (
+                      <Row label="IMC" {...imcStat(weight, profile.height_cm)} />
+                    )}
+                    {profile.age && (
+                      <Row label="Edad" value={`${profile.age} años`} />
+                    )}
+                    {sexLabel(profile.sex) && (
+                      <Row label="Sexo" value={sexLabel(profile.sex)} />
+                    )}
+                    {profile.country && (
+                      <Row label="País" value={countryLabel(profile.country)} />
+                    )}
+                  </Group>
                 )}
-                {weight && <Stat label="Peso actual" value={`${weight} kg`} />}
-                {goal && (
-                  <Stat label="Objetivo" value={`${goal} kg`} color="var(--green)" />
-                )}
-                {weight && goal && (
-                  <Stat
-                    label={weight >= goal ? "Por bajar" : "Por subir"}
-                    value={`${Math.abs(weight - goal).toFixed(1)} kg`}
-                    color="var(--yellow)"
-                  />
-                )}
-                {profile.height_cm && weight && (
-                  <Stat label="IMC" {...imcStat(weight, profile.height_cm)} />
-                )}
-                {profile.age && <Stat label="Edad" value={`${profile.age} años`} />}
-                {sexLabel(profile.sex) && (
-                  <Stat label="Sexo" value={sexLabel(profile.sex)} />
-                )}
-                {profile.country && (
-                  <Stat label="País" value={countryLabel(profile.country)} />
-                )}
-                {profile.tdee && <Stat label="TDEE" value={`${profile.tdee} kcal`} />}
-                {profile.calories_target && (
-                  <Stat
-                    label="Límite p/ meta"
-                    value={`${profile.calories_target} kcal`}
-                    color="var(--yellow)"
-                  />
-                )}
-                {profile.tdee && profile.calories_target && (
-                  <Stat
-                    label={
-                      profile.tdee >= profile.calories_target
-                        ? "Déficit diario"
-                        : "Superávit diario"
-                    }
-                    value={`${Math.abs(profile.tdee - profile.calories_target)} kcal`}
-                    color={
-                      profile.tdee >= profile.calories_target
-                        ? "var(--red)"
-                        : "var(--green)"
-                    }
-                  />
-                )}
-                {profile.activity && (
-                  <Stat label="Actividad" value={activityLabel(profile.activity)} />
-                )}
-              </div>
 
-              <div className="diet-row">
-                <span className="stat-label">Alimentación</span>
-                <div className="diet-tags">
-                  {Array.isArray(profile.diet_tags) && profile.diet_tags.length ? (
-                    profile.diet_tags.map((tag) => (
-                      <span className="diet-tag" key={tag}>
-                        {dietLabel(tag)}
-                      </span>
-                    ))
-                  ) : (
-                    <span className="muted">Sin preferencias cargadas</span>
-                  )}
-                </div>
+                {hasGoals && (
+                  <Group title="Objetivos">
+                    {goal && (
+                      <Row
+                        label="Peso objetivo"
+                        value={`${goal} kg`}
+                        color="var(--green)"
+                      />
+                    )}
+                    {weight && goal && (
+                      <Row
+                        label={weight >= goal ? "Te falta bajar" : "Te falta subir"}
+                        value={`${Math.abs(weight - goal).toFixed(1)} kg`}
+                        color="var(--yellow)"
+                      />
+                    )}
+                    {profile.tdee && (
+                      <Row
+                        label="Gasto diario (TDEE)"
+                        value={`${profile.tdee} kcal`}
+                      />
+                    )}
+                    {profile.calories_target && (
+                      <Row
+                        label="Límite p/ meta"
+                        value={`${profile.calories_target} kcal`}
+                        color="var(--yellow)"
+                      />
+                    )}
+                    {profile.tdee && profile.calories_target && (
+                      <Row
+                        label={
+                          profile.tdee >= profile.calories_target
+                            ? "Déficit diario"
+                            : "Superávit diario"
+                        }
+                        value={`${Math.abs(profile.tdee - profile.calories_target)} kcal`}
+                        color={
+                          profile.tdee >= profile.calories_target
+                            ? "var(--red)"
+                            : "var(--green)"
+                        }
+                      />
+                    )}
+                    {profile.activity && (
+                      <Row
+                        label="Actividad"
+                        value={activityLabel(profile.activity)}
+                      />
+                    )}
+                  </Group>
+                )}
+
+                <Group title="Alimentación">
+                  <div className="profile-row">
+                    <span className="profile-row-label">Preferencias:</span>
+                    <div className="diet-tags">
+                      {Array.isArray(profile.diet_tags) && profile.diet_tags.length ? (
+                        profile.diet_tags.map((tag) => (
+                          <span className="diet-tag" key={tag}>
+                            {dietLabel(tag)}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="muted">Sin preferencias cargadas</span>
+                      )}
+                    </div>
+                  </div>
+                </Group>
               </div>
 
               {confirming && (

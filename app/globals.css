@@ -282,12 +282,9 @@ a { color: var(--blue); }
   background: var(--bg); border: 1px solid var(--border);
   color: var(--text); border-radius: 8px; padding: 9px 12px; font-size: 14px;
 }
-/* ── Perfil / stats ── */
-.stat-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; }
-@media(max-width:700px){ .stat-grid{ grid-template-columns: 1fr 1fr; } }
-.stat-label { color: var(--muted); font-size: 11px; }
-.stat-value { font-weight: 600; font-size: 15px; margin-top: 2px; }
-.stat-sub { font-size: 11px; color: var(--text); margin-top: 2px; }
+/* ── Perfil / stats ──
+   La grilla de 4 columnas (`.stat-grid`) se reemplazó por la lista de filas de
+   "Mis datos" (`.profile-list` / `.profile-row`), más abajo. */
 /* ── Balance neto ── */
 .net-big { font-size: 24px; font-weight: 700; line-height: 1.1; margin-bottom: 6px; }
 /* ── Barras por día ── */
@@ -959,7 +956,6 @@ body.chat-resizing { user-select: none; transition: none; }
 .onb-error { margin-top: 12px; }
 /* ── Perfil: alimentación + botón chico ── */
 .btn-sm { padding: 6px 12px; font-size: 12px; }
-.diet-row { margin-top: 14px; display: flex; flex-direction: column; gap: 6px; }
 .diet-tags { display: flex; flex-wrap: wrap; gap: 6px; }
 .diet-tag {
   font-size: 11px; padding: 3px 10px; border-radius: 20px;
@@ -973,7 +969,45 @@ body.chat-resizing { user-select: none; transition: none; }
 }
 .btn-danger:hover { background: rgba(239, 68, 68, .22); }
 .btn-danger:disabled { opacity: .5; cursor: default; }
-.profile-card { max-height: 88dvh; }
+/* "Mis datos": ventana amplia con una lista vertical (más legible que la grilla
+   de 4 columnas que tenía antes). */
+.profile-card { width: min(760px, 100%); max-height: 88dvh; }
+.profile-card .onb-body { padding: 4px 28px 20px; }
+.profile-card .onb-head { padding: 20px 28px 12px; }
+.profile-card .profile-foot { padding: 14px 28px; }
+.profile-body { display: flex; flex-direction: column; gap: 12px; }
+.profile-group-title {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .08em; color: var(--muted); margin-bottom: 5px;
+}
+.profile-list {
+  border: 1px solid var(--border); border-radius: 12px;
+  padding: 6px 16px; background: rgba(0, 0, 0, .16);
+}
+.profile-row {
+  display: flex; flex-wrap: wrap; align-items: baseline;
+  gap: 6px; padding: 4px 0;
+}
+.profile-row-label { font-size: 13px; color: var(--muted); }
+.profile-row-value {
+  font-size: 14px; font-weight: 600; line-height: 1.45;
+}
+.profile-row-sub {
+  font-size: 11.5px; font-weight: 400;
+  color: var(--muted); margin-left: 5px;
+}
+.profile-row .diet-tags { margin-left: 0; }
+
+@media (max-width: 560px) {
+  .profile-card { width: 100%; max-height: 92dvh; }
+  .profile-card .onb-head { padding: 20px 18px 12px; }
+  .profile-card .onb-body { padding: 4px 18px 16px; }
+  .profile-card .profile-foot { padding: 12px 18px; }
+  .profile-list { padding: 5px 12px; }
+  .profile-row { padding: 4px 0; }
+  .profile-row-label { font-size: 12px; }
+  .profile-row-value { font-size: 13px; }
+}
 .profile-delete-link {
   background: none; border: none; padding: 0;
   color: var(--muted); font-size: 11px; cursor: pointer;
