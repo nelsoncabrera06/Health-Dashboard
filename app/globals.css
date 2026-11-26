@@ -386,19 +386,30 @@ a { color: var(--blue); }
   background: var(--blue);
 }
 .lg-bar.over { background: var(--red); }
-.lg-line { width: 14px; border-top: 2px dashed var(--yellow); }
-.lg-line.tdee { border-color: #818cf8; }
+/* Muestras de la leyenda: mismo dash 6/5 que las líneas del gráfico. */
+.lg-line {
+  width: 16px; height: 2px;
+  background-image: repeating-linear-gradient(
+    90deg, var(--yellow) 0 6px, transparent 6px 11px
+  );
+}
+.lg-line.tdee {
+  background-image: repeating-linear-gradient(
+    90deg, #818cf8 0 6px, transparent 6px 11px
+  );
+}
 /* ── Calorías: gráfico vertical (eje x = tiempo, eje y = kcal) ── */
 .vchart { position: relative; margin-top: 4px; padding-left: 40px; }
-.vcols { display: flex; align-items: stretch; height: 220px; }
+.vcols { display: flex; align-items: stretch; height: 236px; }
 .vcol {
   flex: 1 1 0; display: flex; flex-direction: column;
   align-items: center; min-width: 0;
 }
 .vval {
-  height: 15px; font-size: 9.5px; color: var(--muted);
-  line-height: 15px; white-space: nowrap;
-  font-variant-numeric: tabular-nums;
+  height: 31px; font-size: 9.5px; color: var(--muted);
+  display: flex; align-items: flex-end; justify-content: center;
+  white-space: nowrap; font-variant-numeric: tabular-nums;
+  padding-bottom: 2px;
 }
 .vbarwrap {
   flex: 1; width: 100%; min-height: 0;
@@ -418,7 +429,7 @@ a { color: var(--blue); }
 .vtoday .vday { color: var(--blue); font-weight: 700; }
 .vtoday .vbar { box-shadow: 0 0 8px rgba(59,130,246,.4); }
 .voverlay {
-  position: absolute; top: 15px; bottom: 28px;
+  position: absolute; top: 31px; bottom: 28px;
   left: 40px; right: 0; pointer-events: none;
 }
 .vgrid { position: absolute; left: 0; right: 0; border-top: 1px solid rgba(255,255,255,.05); }
@@ -427,22 +438,33 @@ a { color: var(--blue); }
   top: -7px; font-size: 9.5px; color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
-.vline { position: absolute; left: 0; right: 0; border-top: 1.5px dashed var(--yellow); }
-.vline > span {
-  position: absolute; right: 0; top: -15px;
-  font-size: 9.5px; font-weight: 600; color: var(--yellow);
-  letter-spacing: .01em;
+/* Líneas de referencia (Límite / TDEE) del gráfico de calorías.
+   Mismo trazo que la línea de "Meta" del gráfico de peso: SVG, 2px, dash 6/5.
+   Antes se hacían con `border-top: dashed` y el dash del navegador era de 1-2px. */
+.vlines {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  overflow: visible; pointer-events: none;
 }
-.vline > span.below { top: 3px; }
-.vline.tdee { border-color: #818cf8; }
-.vline.tdee > span { color: #818cf8; }
+.vlines line { stroke-width: 2; stroke-dasharray: 6 5; }
+.vlines line.limit { stroke: var(--yellow); }
+.vlines line.tdee { stroke: #818cf8; }
+/* Sin fondo: la etiqueta se apoya sobre el gráfico, sólo texto con una sombra
+   suave para que se lea si cae sobre una barra. Las dos van a la derecha. */
+.vline-label {
+  position: absolute; right: 4px;
+  font-size: 10px; font-weight: 700; line-height: 1.4;
+  color: var(--yellow);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, .75);
+}
+.vline-label.tdee { color: #818cf8; }
 
 /* En celular el gráfico de calorías pierde el eje ancho y los valores. */
 @media (max-width: 640px) {
   .vchart { padding-left: 28px; }
   .voverlay { left: 28px; }
   .vgrid > span { left: -28px; width: 22px; font-size: 9px; }
-  .vcols { height: 190px; }
+  .vcols { height: 206px; }
   .vval { display: none; }
   .chart-legend { gap: 12px; }
 }

@@ -1155,15 +1155,15 @@ function WeightChart({ weights, goal, windowDays }) {
               y1={Y(goal)}
               y2={Y(goal)}
               stroke="#34d399"
-              strokeWidth="1.5"
-              strokeDasharray="5 5"
+              strokeWidth="2"
+              strokeDasharray="6 5"
             />
             <text
               x={W - P.r}
-              y={Y(goal) - 4}
+              y={Y(goal) - 6}
               textAnchor="end"
-              fontSize="9"
-              fontWeight="600"
+              fontSize="10"
+              fontWeight="700"
               fill="#34d399"
             >
               Meta {goal} kg
@@ -1245,20 +1245,45 @@ function CalChart({ days, target, tdee, windowDays }) {
             <span>{fmtTick(v)}</span>
           </div>
         ))}
-        <div className="vline tdee" style={{ bottom: `${(tdee / max) * 100}%` }}>
-          {!compact && (
-            <span className={(tdee / max) * 100 > 88 ? "below" : undefined}>
+        {/* Líneas de referencia: mismo trazo SVG que la "Meta" del gráfico de
+            peso (`strokeWidth 2`, `dasharray 6 5`). En porcentajes del alto del
+            área para no depender de medir en px. */}
+        <svg className="vlines" aria-hidden="true">
+          <line
+            className="tdee"
+            x1="0"
+            x2="100%"
+            y1={`${100 - (tdee / max) * 100}%`}
+            y2={`${100 - (tdee / max) * 100}%`}
+          />
+          <line
+            className="limit"
+            x1="0"
+            x2="100%"
+            y1={`${100 - (target / max) * 100}%`}
+            y2={`${100 - (target / max) * 100}%`}
+          />
+        </svg>
+        {/* Las dos etiquetas van SIEMPRE arriba de su línea. Para que la de
+            arriba no se salga, el área del gráfico deja 16px de aire arriba
+            (`.vval` / `.voverlay` en 31px). Si una se pone abajo, se cruza con
+            la otra y una tapa a la otra. */}
+        {!compact && (
+          <>
+            <div
+              className="vline-label tdee"
+              style={{ bottom: `calc(${(tdee / max) * 100}% + 7px)` }}
+            >
               TDEE {tdee}
-            </span>
-          )}
-        </div>
-        <div className="vline" style={{ bottom: `${(target / max) * 100}%` }}>
-          {!compact && (
-            <span className={(target / max) * 100 > 88 ? "below" : undefined}>
+            </div>
+            <div
+              className="vline-label"
+              style={{ bottom: `calc(${(target / max) * 100}% + 7px)` }}
+            >
               Límite {target}
-            </span>
-          )}
-        </div>
+            </div>
+          </>
+        )}
       </div>
       <div className="vcols" style={{ gap }}>
         {days.map((d, i) => {
