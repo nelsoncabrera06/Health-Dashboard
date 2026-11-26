@@ -411,7 +411,7 @@ export default function ChatWidget({ targets, userId, isDemo, diets, country, on
         {
           role: "assistant",
           content:
-            err.code === "demo_limit" ? err.message : `⚠️ ${err.message}`,
+            err.code === "demo_limit" ? err.message : err.message,
           code: err.code || "",
         },
       ]);
@@ -523,7 +523,15 @@ export default function ChatWidget({ targets, userId, isDemo, diets, country, on
           title="Abrir el asistente"
           aria-expanded={false}
         >
-          💬
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path
+              d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9.7 9.7 0 0 1-2.9-.4L4 21l1.5-4.1A8.2 8.2 0 0 1 3 11.5 8.4 8.4 0 0 1 12 3a8.4 8.4 0 0 1 9 8.5Z"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
         </button>
       )}
       <aside
@@ -545,7 +553,7 @@ export default function ChatWidget({ targets, userId, isDemo, diets, country, on
         <div className="chat-head">
           <div>
             <div className="chat-title-row">
-              <span className="chat-title">🤖 Asistente AI</span>
+              <span className="chat-title">Asistente AI</span>
               {usageInfo && (
                 <span
                   className={`chat-usage-badge${
@@ -602,7 +610,8 @@ export default function ChatWidget({ targets, userId, isDemo, diets, country, on
               )}
               {m.transcript && (
                 <div className="chat-transcript" title="Lo que se entendió de la nota de voz">
-                  🎤 {m.transcript}
+                  <span className="chat-transcript-tag">Voz</span>
+                  {m.transcript}
                 </div>
               )}
               {!!m.content && <div className="chat-bubble">{m.content}</div>}
@@ -618,7 +627,7 @@ export default function ChatWidget({ targets, userId, isDemo, diets, country, on
               {m.estimate && (
                 <div className="chat-est">
                   <div className="chat-est-title">
-                    🍽️ {m.estimate.meal} · {m.estimate.calories} kcal
+                    {m.estimate.meal} · {m.estimate.calories} kcal
                   </div>
                   <div className="chat-est-macros">
                     P {m.estimate.protein}g · C {m.estimate.carbs}g · G{" "}
@@ -648,14 +657,14 @@ export default function ChatWidget({ targets, userId, isDemo, diets, country, on
                     </div>
                   )}
                   {m.saveError && (
-                    <div className="chat-est-err">⚠️ {m.saveError}</div>
+                    <div className="chat-est-err">{m.saveError}</div>
                   )}
                 </div>
               )}
               {m.weight && (
                 <div className="chat-est chat-weight">
                   <div className="chat-est-title">
-                    ⚖️ {fmtKg(m.weight.weight)} kg · hoy
+                    {fmtKg(m.weight.weight)} kg · hoy
                   </div>
                   {m.weightSaved ? (
                     <div className="chat-est-saved">✓ Peso registrado</div>
@@ -683,7 +692,7 @@ export default function ChatWidget({ targets, userId, isDemo, diets, country, on
                     </div>
                   )}
                   {m.weightError && (
-                    <div className="chat-est-err">⚠️ {m.weightError}</div>
+                    <div className="chat-est-err">{m.weightError}</div>
                   )}
                 </div>
               )}
@@ -709,8 +718,8 @@ export default function ChatWidget({ targets, userId, isDemo, diets, country, on
             </button>
           </div>
         )}
-        {photoError && <div className="chat-photo-err">⚠️ {photoError}</div>}
-        {audioError && <div className="chat-photo-err">⚠️ {audioError}</div>}
+        {photoError && <div className="chat-photo-err">{photoError}</div>}
+        {audioError && <div className="chat-photo-err">{audioError}</div>}
         <form className="chat-input" onSubmit={send}>
           {recording ? (
             <div className="chat-rec-bar">
@@ -755,14 +764,14 @@ export default function ChatWidget({ targets, userId, isDemo, diets, country, on
                         type="button"
                         onClick={() => cameraRef.current?.click()}
                       >
-                        📷 Tomar foto
+                        Tomar foto
                       </button>
                     )}
                     <button
                       type="button"
                       onClick={() => galleryRef.current?.click()}
                     >
-                      🖼️ Elegir imagen
+                      Elegir imagen
                     </button>
                   </div>
                 )}

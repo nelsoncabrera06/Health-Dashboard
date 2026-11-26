@@ -2,7 +2,7 @@ import Landing from "../components/Landing";
 import "./landing.css";
 
 export const metadata = {
-  title: "Health Dashboard — Trackeá tus comidas, la IA hace las cuentas",
+  title: "Nutrition Dashboard — Trackeá tus comidas, la IA hace las cuentas",
   description:
     "Registrá comidas con una frase o una foto y mirá tus calorías, macros y peso en gráficos claros. Nutrición simple, sin planillas.",
 };

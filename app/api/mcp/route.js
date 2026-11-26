@@ -64,7 +64,7 @@ function readDate(value, timezone, label = "date") {
 
 function buildServer(auth) {
   const server = new McpServer(
-    { name: "health-dashboard", version: "1.0.0" },
+    { name: "nutrition-dashboard", version: "1.0.0" },
     {
       instructions:
         "API de seguimiento nutricional personal. Unidades: calorías en kcal, macros en gramos, peso en kg, duración en minutos. " +
@@ -302,7 +302,7 @@ function unauthorized(code, message) {
       headers: {
         "Cache-Control": "no-store",
         // Para que el cliente MCP sepa que tiene que mandar un Bearer.
-        "WWW-Authenticate": 'Bearer realm="health-dashboard"',
+        "WWW-Authenticate": 'Bearer realm="nutrition-dashboard"',
       },
     }
   );

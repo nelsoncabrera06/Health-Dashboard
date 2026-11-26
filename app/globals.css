@@ -52,7 +52,55 @@ a { color: var(--blue); }
 }
 .btn-row { display: flex; gap: 12px; justify-content: center; }
 /* ── Dashboard: ancho completo como el original ── */
-.dash { width: 100%; }
+.dash { width: 100%; position: relative; z-index: 1; }
+
+/* Fondo del dashboard: el mismo lenguaje del landing (degradés azul/teal/violeta
+   muy suaves + cuadriculado que se desvanece hacia abajo). Va en dos capas
+   `fixed` detrás del contenido, así el fondo no scrollea con la página.
+   Se activa solo cuando hay dashboard (`:has`), no en el resto de la app. */
+body:has(.dash)::before,
+body:has(.dash)::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+body:has(.dash)::before {
+  background: radial-gradient(
+      1000px 560px at 16% -10%,
+      rgba(59, 130, 246, 0.26),
+      transparent 70%
+    ),
+    radial-gradient(
+      820px 520px at 94% 0%,
+      rgba(20, 184, 166, 0.18),
+      transparent 72%
+    ),
+    radial-gradient(
+      760px 540px at 55% 105%,
+      rgba(168, 85, 247, 0.12),
+      transparent 75%
+    );
+}
+body:has(.dash)::after {
+  background-image: linear-gradient(
+      rgba(148, 163, 184, 0.06) 1px,
+      transparent 1px
+    ),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.06) 1px, transparent 1px);
+  background-size: 64px 64px;
+  -webkit-mask-image: radial-gradient(
+    ellipse 85% 55% at 50% 0%,
+    #000 30%,
+    transparent 100%
+  );
+  mask-image: radial-gradient(
+    ellipse 85% 55% at 50% 0%,
+    #000 30%,
+    transparent 100%
+  );
+}
 
 /* Demo: aviso de que los registros viven solo en la pestaña. */
 .demo-banner {
@@ -65,9 +113,22 @@ a { color: var(--blue); }
 .card {
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 14px;
   padding: 18px;
 }
+.chart-card { margin-bottom: 20px; }
+
+/* Cabecera de una tarjeta con contenido: título + control a la derecha. */
+.card-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap; margin-bottom: 14px;
+}
+.card-title {
+  font-size: 15px; font-weight: 650; color: var(--text);
+  line-height: 1.25; margin-bottom: 14px;
+}
+.card-head .card-title { margin-bottom: 2px; }
+.card-subline { font-size: 12px; color: var(--muted); line-height: 1.45; }
 .muted { color: var(--muted); font-size: 13px; }
 /* ── Header ── */
 .header {
@@ -79,7 +140,11 @@ a { color: var(--blue); }
   gap: 12px;
 }
 .header-left { display: flex; align-items: center; gap: 14px; }
-.logo { font-size: 26px; }
+.logo {
+  width: 30px; height: 30px; display: flex;
+  align-items: center; justify-content: center; flex: 0 0 auto;
+}
+.logo svg { width: 100%; height: 100%; }
 .title { font-size: 20px; font-weight: 700; color: var(--text); }
 .subtitle { font-size: 12px; color: var(--muted); margin-top: 2px; }
 .header-right { display: flex; align-items: center; gap: 12px; }
@@ -99,14 +164,43 @@ a { color: var(--blue); }
   position: relative;
 }
 .card-label {
-  font-size: 11px;
+  font-size: 12.5px;
+  font-weight: 600;
   color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: .08em;
   margin-bottom: 8px;
 }
 .card-header-row .card-label {
   margin-bottom: 0;
+}
+
+/* Las tarjetas de macros son el selector del gráfico: la activa se marca con
+   su color y un borde. Ojo: la tarjeta tiene el botón (i) adentro, así que es
+   un div con role=button (no un <button>) y ese botón corta la propagación. */
+.macro-card {
+  cursor: pointer;
+  transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
+}
+.macro-card:hover { border-color: rgba(255, 255, 255, .18); }
+.macro-card.active {
+  border-color: var(--macro);
+  box-shadow: inset 0 0 0 1px var(--macro);
+}
+.macro-card.active .card-label { color: var(--text); }
+.macro-card:focus-visible {
+  outline: 2px solid var(--macro);
+  outline-offset: 2px;
+}
+/* Explica cómo se vinculan las tarjetas con el gráfico. */
+.macro-hint {
+  font-size: 11.5px; color: var(--muted);
+  margin: -8px 0 14px;
+}
+
+/* Punto de color que ata el gráfico con la tarjeta elegida. */
+.title-dot {
+  display: inline-block;
+  width: 9px; height: 9px; border-radius: 3px;
+  margin-right: 7px; vertical-align: 1px;
 }
 .card-info-wrap {
   position: relative;
@@ -220,14 +314,13 @@ a { color: var(--blue); }
   grid-template-columns: 1fr 1fr;
   gap: 16px;
   margin-bottom: 20px;
+  align-items: start;
 }
 @media(max-width:700px){ .grid-bottom{ grid-template-columns: 1fr; } }
 .section-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: .07em;
+  font-size: 15px;
+  font-weight: 650;
+  color: var(--text);
   margin-bottom: 14px;
 }
 /* ── Meal rows ── */
@@ -240,7 +333,8 @@ a { color: var(--blue); }
   gap: 8px;
 }
 .meal-row:last-child { border-bottom: none; }
-.meal-time { font-size: 11px; color: var(--muted); min-width: 90px; }
+.meal-time { font-size: 11.5px; color: var(--muted); min-width: 92px; }
+.meal-meta { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
 .meal-name { flex: 1; font-size: 13px; }
 .meal-cal { font-size: 16px; color: var(--orange); font-weight: 600; white-space: nowrap; }
 .meal-del {
@@ -286,7 +380,18 @@ a { color: var(--blue); }
    La grilla de 4 columnas (`.stat-grid`) se reemplazó por la lista de filas de
    "Mis datos" (`.profile-list` / `.profile-row`), más abajo. */
 /* ── Balance neto ── */
-.net-big { font-size: 24px; font-weight: 700; line-height: 1.1; margin-bottom: 6px; }
+.net-big { font-size: 22px; font-weight: 700; line-height: 1.2; }
+.net-box {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap;
+  margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border);
+}
+.net-label { font-size: 12px; color: var(--muted); margin-bottom: 2px; }
+.net-breakdown {
+  display: flex; gap: 14px; flex-wrap: wrap;
+  font-size: 11.5px; color: var(--muted);
+}
+.net-breakdown b { color: var(--text); font-weight: 600; }
 /* ── Barras por día ── */
 .day-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
 .day-label { width: 44px; font-size: 12px; color: var(--muted); text-transform: capitalize; }
@@ -296,13 +401,23 @@ a { color: var(--blue); }
 }
 .day-fill { height: 100%; border-radius: 9999px; transition: width .4s ease; }
 .day-val { width: 52px; text-align: right; font-size: 12px; font-weight: 600; }
-/* ── Píldoras de ventana ── */
-.pills { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
-.pill {
-  padding: 4px 12px; border-radius: 20px; border: 1px solid var(--border);
-  background: transparent; color: var(--muted); font-size: 11px; cursor: pointer;
+/* ── Selector de período (segmentado) ── */
+.window-switch {
+  display: inline-flex; gap: 2px; padding: 3px; flex: 0 0 auto;
+  background: rgba(0, 0, 0, .22); border: 1px solid var(--border);
+  border-radius: 9px;
 }
-.pill.active { background: var(--yellow); border-color: var(--yellow); color: #000; font-weight: 600; }
+.window-switch button {
+  border: none; background: transparent; color: var(--muted);
+  font: inherit; font-size: 11.5px; font-weight: 600;
+  padding: 5px 10px; border-radius: 7px; cursor: pointer;
+  line-height: 1;
+}
+.window-switch button:hover { color: var(--text); }
+.window-switch button.active {
+  background: var(--card2); color: var(--text);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .3);
+}
 /* ── Menú de usuario ── */
 .user-menu-wrap { position: relative; }
 .user-menu {
@@ -338,32 +453,57 @@ a { color: var(--blue); }
   background: rgba(59,130,246,.16); border-color: var(--blue);
   color: var(--text); font-weight: 600;
 }
-/* ── Calorías: header con pills + línea de límite (como el original) ── */
-.cal-head {
-  display: flex; justify-content: space-between; align-items: center;
-  gap: 12px; margin-bottom: 8px; flex-wrap: wrap;
+/* ── Calorías: leyenda de la serie ── */
+.chart-legend {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  margin-bottom: 10px; font-size: 11.5px; color: var(--muted);
 }
-.goal-line {
-  display: flex; justify-content: flex-end; align-items: center;
-  gap: 6px; margin-bottom: 4px; font-size: 11px; color: var(--muted);
+.legend-item { display: inline-flex; align-items: center; gap: 6px; }
+.lg-bar {
+  width: 9px; height: 9px; border-radius: 3px;
+  background: var(--blue);
 }
-.goal-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--yellow); }
+.lg-bar.over { background: var(--red); }
+/* Objetivo de un macro: mismo verde que la "Meta" del peso. */
+.lg-line.goal {
+  background-image: repeating-linear-gradient(
+    90deg, #34d399 0 6px, transparent 6px 11px
+  );
+}
+/* Muestras de la leyenda: mismo dash 6/5 que las líneas del gráfico. */
+.lg-line {
+  width: 16px; height: 2px;
+  background-image: repeating-linear-gradient(
+    90deg, var(--yellow) 0 6px, transparent 6px 11px
+  );
+}
+.lg-line.tdee {
+  background-image: repeating-linear-gradient(
+    90deg, #818cf8 0 6px, transparent 6px 11px
+  );
+}
 /* ── Calorías: gráfico vertical (eje x = tiempo, eje y = kcal) ── */
-.vchart { position: relative; margin-top: 6px; }
-.vcols { display: flex; align-items: stretch; height: 250px; }
+.vchart { position: relative; margin-top: 4px; padding-left: 40px; }
+.vcols { display: flex; align-items: stretch; height: 236px; }
 .vcol {
   flex: 1 1 0; display: flex; flex-direction: column;
   align-items: center; min-width: 0;
 }
 .vval {
-  height: 14px; font-size: 9px; color: var(--muted);
-  line-height: 14px; white-space: nowrap;
+  height: 31px; font-size: 9.5px; color: var(--muted);
+  display: flex; align-items: flex-end; justify-content: center;
+  white-space: nowrap; font-variant-numeric: tabular-nums;
+  padding-bottom: 2px;
 }
 .vbarwrap {
   flex: 1; width: 100%; min-height: 0;
   display: flex; align-items: flex-end; justify-content: center;
 }
-.vbar { width: 100%; max-width: 36px; border-radius: 4px 4px 0 0; }
+.vbar {
+  width: 100%; border-radius: 5px 5px 0 0;
+  transition: opacity .15s ease;
+}
+.vbar:hover { opacity: .82; }
 .vday {
   height: 28px; display: flex; flex-direction: column; align-items: center;
   justify-content: flex-start; font-size: 9px; color: var(--muted);
@@ -373,24 +513,70 @@ a { color: var(--blue); }
 .vtoday .vday { color: var(--blue); font-weight: 700; }
 .vtoday .vbar { box-shadow: 0 0 8px rgba(59,130,246,.4); }
 .voverlay {
-  position: absolute; top: 14px; bottom: 28px;
-  left: 0; right: 0; pointer-events: none;
+  position: absolute; top: 31px; bottom: 28px;
+  left: 40px; right: 0; pointer-events: none;
 }
-.vgrid { position: absolute; left: 0; right: 0; border-top: 1px solid var(--border); }
-.vgridv { position: absolute; top: 0; bottom: 0; border-left: 1px solid var(--border); }
-.vgrid > span { position: absolute; left: 0; top: -14px; font-size: 9px; color: var(--muted); }
-.vgrid > span.below { top: 2px; }
-.vline { position: absolute; left: 0; right: 0; border-top: 2px dashed var(--yellow); }
-.vline > span {
-  position: absolute; right: 0; top: -14px;
-  font-size: 9px; font-weight: 600; color: var(--yellow);
+.vgrid { position: absolute; left: 0; right: 0; border-top: 1px solid rgba(255,255,255,.05); }
+.vgrid > span {
+  position: absolute; left: -40px; width: 32px; text-align: right;
+  top: -7px; font-size: 9.5px; color: var(--muted);
+  font-variant-numeric: tabular-nums;
 }
-.vline > span.below { top: 3px; }
-.vline.tdee { border-color: #818cf8; }
-.vline.tdee > span { color: #818cf8; }
-/* ── Peso: gráfico de línea SVG ── */
+/* Líneas de referencia (Límite / TDEE) del gráfico de calorías.
+   Mismo trazo que la línea de "Meta" del gráfico de peso: SVG, 2px, dash 6/5.
+   Antes se hacían con `border-top: dashed` y el dash del navegador era de 1-2px. */
+.vlines {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  overflow: visible; pointer-events: none;
+}
+.vlines line { stroke-width: 2; stroke-dasharray: 6 5; }
+.vlines line.limit { stroke: var(--yellow); }
+.vlines line.goal { stroke: #34d399; }
+.vlines line.tdee { stroke: #818cf8; }
+/* Sin fondo: la etiqueta se apoya sobre el gráfico, sólo texto con una sombra
+   suave para que se lea si cae sobre una barra. Las dos van a la derecha. */
+.vline-label {
+  position: absolute; right: 4px;
+  font-size: 10px; font-weight: 700; line-height: 1.4;
+  color: var(--yellow);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, .75);
+}
+.vline-label.tdee { color: #818cf8; }
+.vline-label.goal { color: #34d399; }
+
+/* En celular el gráfico de calorías pierde el eje ancho y los valores. */
+@media (max-width: 640px) {
+  .vchart { padding-left: 28px; }
+  .voverlay { left: 28px; }
+  .vgrid > span { left: -28px; width: 22px; font-size: 9px; }
+  .vcols { height: 206px; }
+  .vval { display: none; }
+  .chart-legend { gap: 12px; }
+}
+/* ── Peso: KPI + gráfico de línea SVG ── */
+.kpi-row {
+  display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.kpi-main { display: flex; align-items: baseline; gap: 4px; }
+.kpi-value {
+  font-size: 30px; font-weight: 700; line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.kpi-unit { font-size: 13px; color: var(--muted); }
+.kpi-delta {
+  font-size: 12.5px; font-weight: 600; color: var(--muted);
+  display: inline-flex; align-items: baseline; gap: 5px;
+  padding: 3px 9px; border-radius: 999px;
+  border: 1px solid var(--border); background: rgba(0, 0, 0, .18);
+}
+.kpi-delta span { font-weight: 400; color: var(--muted); font-size: 11.5px; }
+.kpi-delta.down { color: var(--green); border-color: rgba(34, 197, 94, .35); }
+.kpi-delta.up { color: var(--yellow); border-color: rgba(234, 179, 8, .35); }
+.kpi-goal { font-size: 12px; color: var(--muted); margin-left: auto; }
+.kpi-goal b { color: var(--text); font-weight: 600; }
 .wchart { width: 100%; height: auto; display: block; }
-.weight-note { font-size: 11px; color: var(--muted); margin-top: 6px; text-align: right; }
 /* ── Chat AI (paso 9): panel lateral de alto completo ── */
 body { transition: padding-right .25s ease; }
 /* Abierto en desktop: el dashboard se achica, no queda tapado por el panel. */
@@ -401,9 +587,11 @@ body { transition: padding-right .25s ease; }
 .chat-fab {
   position: fixed; right: 20px; bottom: 20px; z-index: 50;
   width: 52px; height: 52px; border-radius: 50%;
-  background: var(--blue); border: none; font-size: 22px;
-  cursor: pointer; box-shadow: 0 4px 16px rgba(0,0,0,.45);
+  background: var(--blue); border: none; color: #fff;
+  display: grid; place-items: center; cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0,0,0,.45);
 }
+.chat-fab svg { width: 23px; height: 23px; }
 .chat-drawer {
   position: fixed; top: 0; right: 0; z-index: 50;
   width: var(--chat-w); max-width: 100vw;
@@ -684,6 +872,12 @@ body.chat-resizing { user-select: none; transition: none; }
   flex: 0 0 auto;
 }
 /* Lo que el STT entendió de la nota de voz. */
+.chat-transcript-tag {
+  display: inline-block; margin-right: 6px; padding: 0 5px;
+  border-radius: 4px; background: rgba(255, 255, 255, .08);
+  font-size: 9.5px; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--muted);
+}
 .chat-transcript {
   margin-top: 6px;
   font-size: 12px;
