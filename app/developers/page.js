@@ -3,7 +3,7 @@ import CopyCode from "../../components/CopyCode";
 import "./developers.css";
 
 export const metadata = {
-  title: "API y MCP para agentes — Health Dashboard",
+  title: "API y MCP para agentes — Nutrition Dashboard",
   description:
     "Leé y registrá comidas, pesos y entrenamientos desde Claude Code, OpenClaw, Hermes o cualquier cliente HTTP. REST y MCP con API keys por usuario.",
 };
@@ -76,7 +76,7 @@ const CURL_WRITE = `curl -s -X POST "${SITE}/api/v1/meals?pretty=1" \\
   -d '{"name":"Milanesa con puré","calories":780,
        "protein":42,"carbs":68,"fat":36,"client_ref":"demo-1"}'`;
 
-const CLAUDE_CODE = `claude mcp add --transport http health \\
+const CLAUDE_CODE = `claude mcp add --transport http nutrition \\
   ${MCP_URL} \\
   --header "Authorization: Bearer hd_live_xxxxxxxx"`;
 
@@ -106,7 +106,7 @@ export default function DevelopersPage() {
                 <rect x="25.5" y="7" width="5" height="21" rx="1.5" fill="#14b8a6" />
               </svg>
             </span>
-            Health<span>Dashboard</span>
+            Nutrition<span>Dashboard</span>
           </Link>
           <nav className="dev-nav">
             <a href="#tools">Tools</a>
@@ -130,7 +130,7 @@ export default function DevelopersPage() {
               <span className="dev-grad">disponible para tu agente.</span>
             </h1>
             <p className="dev-lead">
-              Health Dashboard expone lo mismo que ves en la web —comidas, pesos,
+              Nutrition Dashboard expone lo mismo que ves en la web —comidas, pesos,
               entrenamientos y objetivos— por dos puertas: <b>MCP</b> para agentes que
               hablan el protocolo (Claude Code, OpenClaw, Hermes) y una <b>API REST</b>
               para scripts y <code>curl</code>. Cada usuario tiene sus propias keys, con
@@ -372,7 +372,7 @@ export default function DevelopersPage() {
 
       <footer className="dev-foot">
         <div className="dev-wrap dev-foot-inner">
-          <span>© 2026 Health Dashboard. Hecho por Nelson Cabrera.</span>
+          <span>© 2026 Nutrition Dashboard. Hecho por Nelson Cabrera.</span>
           <span>
             Las estimaciones son aproximadas y no reemplazan asesoramiento médico.
           </span>

@@ -300,7 +300,7 @@ export default function AdminPage() {
       <header className="header">
         <Link href="/dashboard" className="brand">
           <div>
-            <div className="title">Health Dashboard</div>
+            <div className="title">Nutrition Dashboard</div>
             <div className="subtitle">Admin · configuración</div>
           </div>
         </Link>

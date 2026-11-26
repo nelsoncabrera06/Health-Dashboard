@@ -65,7 +65,7 @@ body:has(.dev) {
   text-decoration: none;
   white-space: nowrap;
 }
-/* "Health" blanco, "Dashboard" en teal (el último span del brand). */
+/* "Nutrition" blanco, "Dashboard" en teal (el último span del brand). */
 .dev-brand > span:last-child {
   color: var(--teal);
 }

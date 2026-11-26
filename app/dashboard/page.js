@@ -486,7 +486,7 @@ export default function Dashboard() {
             </svg>
           </span>
           <div>
-            <div className="title">Health Dashboard</div>
+            <div className="title">Nutrition Dashboard</div>
             <div className="subtitle">
               {user.displayName || user.username} · plan {user.tier}
             </div>

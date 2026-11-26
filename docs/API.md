@@ -1,6 +1,6 @@
 # API & MCP
 
-Health Dashboard exposes the same data the web app shows — meals, weights, workouts and daily
+Nutrition Dashboard exposes the same data the web app shows — meals, weights, workouts and daily
 targets — so an agent or a script can read it and log new entries. There are two doors to the
 same core: **MCP** for agents that speak the protocol, and a **REST API** for everything else.
 
@@ -73,7 +73,7 @@ you create a new one. Deleting removes the row and its usage counter.
 ### Claude Code
 
 ```bash
-claude mcp add --transport http health \
+claude mcp add --transport http nutrition \
   https://nutritiondashboard.vercel.app/api/mcp \
   --header "Authorization: Bearer hd_live_xxxxxxxx"
 ```

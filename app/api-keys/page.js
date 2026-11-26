@@ -242,7 +242,7 @@ export default function ConnectionsPage() {
       <header className="header">
         <Link href="/dashboard" className="brand">
           <div>
-            <div className="title">Health Dashboard</div>
+            <div className="title">Nutrition Dashboard</div>
             <div className="subtitle">API keys · API para agentes</div>
           </div>
         </Link>

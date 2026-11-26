@@ -1,4 +1,4 @@
-# 🏋️ Health Dashboard
+# 🏋️ Nutrition Dashboard
 
 A personal nutrition dashboard for the browser, with an AI chat that estimates the macros of
 what you ate — by text or by photo — and an **API + MCP layer** so an agent can read your day and

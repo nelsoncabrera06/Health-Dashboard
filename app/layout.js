@@ -6,7 +6,7 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"], display: "swap" });
 
 export const metadata = {
-  title: "Health Dashboard",
+  title: "Nutrition Dashboard",
   description: "Nutrición y entrenamiento",
 };
 

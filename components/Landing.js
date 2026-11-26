@@ -7,7 +7,7 @@ import { useAuth } from "./AuthContext";
 import AuthModal from "./AuthModal";
 
 // Ejemplo de conexión que se muestra en la sección "Para tu agente".
-const AGENT_SNIPPET = `claude mcp add --transport http health \\
+const AGENT_SNIPPET = `claude mcp add --transport http nutrition \\
   https://nutritiondashboard.vercel.app/api/mcp \\
   --header "Authorization: Bearer hd_live_xxxxxxxx"`;
 
@@ -97,7 +97,7 @@ export default function Landing() {
         {/* ═══════════ HEADER ═══════════ */}
         <header className={`site-head${scrolled ? " scrolled" : ""}`}>
           <div className="container head-inner">
-            <a className="brand" href="#top" aria-label="Health Dashboard, inicio">
+            <a className="brand" href="#top" aria-label="Nutrition Dashboard, inicio">
               <span className="brand-mark" aria-hidden="true">
                 <svg viewBox="0 0 32 32" fill="none">
                   <rect x="3" y="18" width="5" height="10" rx="1.5" fill="#3b82f6" />
@@ -107,7 +107,7 @@ export default function Landing() {
                 </svg>
               </span>
               <span className="brand-name">
-                Health<span>Dashboard</span>
+                Nutrition<span>Dashboard</span>
               </span>
             </a>
 
@@ -1038,7 +1038,7 @@ export default function Landing() {
                     </svg>
                   </span>
                   <span className="brand-name">
-                    Health<span>Dashboard</span>
+                    Nutrition<span>Dashboard</span>
                   </span>
                 </a>
                 <p>
@@ -1082,7 +1082,7 @@ export default function Landing() {
             </div>
 
             <div className="foot-bottom">
-              <span>© 2026 Health Dashboard. Hecho por Nelson Cabrera.</span>
+              <span>© 2026 Nutrition Dashboard. Hecho por Nelson Cabrera.</span>
               <span>Las estimaciones son aproximadas y no reemplazan asesoramiento médico.</span>
             </div>
           </div>
