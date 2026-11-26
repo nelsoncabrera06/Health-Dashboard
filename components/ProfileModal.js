@@ -308,7 +308,7 @@ export default function ProfileModal({
               onClick={onEdit}
               disabled={!profile}
             >
-              ✏️ Editar
+              Editar
             </button>
           )}
         </div>

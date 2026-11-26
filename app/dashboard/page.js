@@ -164,7 +164,7 @@ export default function Dashboard() {
   const [confirmMeal, setConfirmMeal] = useState(null);
   const [deleting, setDeleting] = useState(false);
   // Onboarding: se abre solo la primera vez (perfil sin `onboarded_at`) y
-  // después desde "✏️ Editar" en la ventana "Mis datos".
+  // después desde "Editar" en la ventana "Mis datos".
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const autoOnboarding = useRef(false);
@@ -365,6 +365,43 @@ export default function Dashboard() {
 
   const totals = sumMacros(todayMeals);
 
+  // Valores derivados de las dos tarjetas grandes (calorías y peso).
+  const calTarget = targets?.calories || 2400;
+  const tdeeValue = profile?.tdee || 2910;
+  const goalWeight = profile?.goal_weight_kg
+    ? Number(profile.goal_weight_kg)
+    : null;
+  const burnedCalories = workouts.reduce(
+    (s, w) => s + (Number(w.calories_burned) || 0),
+    0
+  );
+  const netCalories = totals.calories - burnedCalories;
+
+  const calWithData = weekDays.filter((d) => d.calories > 0);
+  const calAvg = calWithData.length
+    ? Math.round(
+        calWithData.reduce((s, d) => s + d.calories, 0) / calWithData.length
+      )
+    : 0;
+  const calOverDays = weekDays.filter((d) => d.calories > calTarget).length;
+
+  // Cambio dentro de la ventana elegida (el gráfico usa la misma).
+  const winStart = new Date();
+  winStart.setHours(0, 0, 0, 0);
+  winStart.setDate(winStart.getDate() - (weightWindow - 1));
+  const winWeights = weights.filter(
+    (w) => new Date(`${w.measured_at}T12:00:00`) >= winStart
+  );
+  const weightDelta =
+    winWeights.length >= 2
+      ? Number(winWeights[0].weight_kg) -
+        Number(winWeights[winWeights.length - 1].weight_kg)
+      : null;
+  const goalDistance =
+    goalWeight != null && weights.length
+      ? Math.abs(Number(weights[0].weight_kg) - goalWeight).toFixed(1)
+      : null;
+
   return (
     <main className="dash">
       <div className="header">
@@ -373,7 +410,14 @@ export default function Dashboard() {
           href="/"
           style={{ textDecoration: "none", color: "inherit" }}
         >
-          <div className="logo">🏋️</div>
+          <span className="logo" aria-hidden="true">
+            <svg viewBox="0 0 32 32" fill="none">
+              <rect x="3" y="19" width="5" height="9" rx="1.5" fill="#3b82f6" />
+              <rect x="10.5" y="12" width="5" height="16" rx="1.5" fill="#22c55e" />
+              <rect x="18" y="16" width="5" height="12" rx="1.5" fill="#a855f7" />
+              <rect x="25.5" y="7" width="5" height="21" rx="1.5" fill="#14b8a6" />
+            </svg>
+          </span>
           <div>
             <div className="title">Health Dashboard</div>
             <div className="subtitle">
@@ -446,13 +490,13 @@ export default function Dashboard() {
           className="btn btn-secondary"
           onClick={() => setFormOpen((o) => !o)}
         >
-          {formOpen ? "▾ Cerrar registro" : "➕ Registrar comida"}
+          {formOpen ? "Cerrar registro" : "+ Registrar comida"}
         </button>
       </div>
 
       {formOpen && (
         <div className="card" style={{ marginBottom: 20 }}>
-          <div className="section-title">➕ Registrar comida</div>
+          <div className="section-title">Registrar comida</div>
           <form className="meal-form" onSubmit={handleAdd}>
             <label className="meal-field meal-field-wide">
               Qué comiste
@@ -515,7 +559,7 @@ export default function Dashboard() {
         ) : (
           <>
             <MacroCard
-              label="🔥 Calorías"
+              label="Calorías"
               value={totals.calories}
               target={targets.calories}
               unit=""
@@ -527,7 +571,7 @@ export default function Dashboard() {
               }}
             />
             <MacroCard
-              label="💪 Proteína"
+              label="Proteína"
               value={totals.protein}
               target={targets.protein}
               unit="g"
@@ -539,7 +583,7 @@ export default function Dashboard() {
               }}
             />
             <MacroCard
-              label="🍞 Carbos"
+              label="Carbos"
               value={totals.carbs}
               target={targets.carbs}
               unit="g"
@@ -551,7 +595,7 @@ export default function Dashboard() {
               }}
             />
             <MacroCard
-              label="🥑 Grasas"
+              label="Grasas"
               value={totals.fat}
               target={targets.fat}
               unit="g"
@@ -566,12 +610,19 @@ export default function Dashboard() {
         )}
       </div>
 
-      <div className="card" style={{ marginBottom: 20 }}>
-        <div className="cal-head">
-          <div className="section-title" style={{ margin: 0 }}>
-            📅 Calorías
+      <section className="card chart-card">
+        <header className="card-head">
+          <div>
+            <h2 className="card-title">Calorías</h2>
+            <p className="card-subline">
+              {calWindow === 7 ? "Últimos 7 días" : `Últimos ${calWindow} días`}
+              {calAvg > 0 ? ` · promedio ${calAvg.toLocaleString("es-AR")} kcal` : ""}
+              {calOverDays > 0
+                ? ` · ${calOverDays} ${calOverDays === 1 ? "día" : "días"} sobre el límite`
+                : ""}
+            </p>
           </div>
-          <div className="pills" style={{ margin: 0 }}>
+          <div className="window-switch" role="group" aria-label="Período de calorías">
             {[
               [7, "7D"],
               [14, "2S"],
@@ -580,18 +631,30 @@ export default function Dashboard() {
             ].map(([days, label]) => (
               <button
                 key={label}
-                className={`pill${calWindow === days ? " active" : ""}`}
+                className={calWindow === days ? "active" : ""}
                 onClick={() => setCalWindow(days)}
               >
                 {label}
               </button>
             ))}
           </div>
+        </header>
+
+        <div className="chart-legend">
+          <span className="legend-item">
+            <i className="lg-bar" /> Consumido
+          </span>
+          <span className="legend-item">
+            <i className="lg-bar over" /> Sobre el límite
+          </span>
+          <span className="legend-item">
+            <i className="lg-line limit" /> Límite {calTarget}
+          </span>
+          <span className="legend-item">
+            <i className="lg-line tdee" /> TDEE {tdeeValue}
+          </span>
         </div>
-        <div className="goal-line">
-          <span className="goal-dot" /> Límite: {targets?.calories || 2400}{" "}
-          kcal · TDEE: {profile?.tdee || 2910} kcal
-        </div>
+
         {loading && <p className="muted">Cargando…</p>}
         {!loading && !weekDays.length && (
           <div className="empty-state">Sin datos</div>
@@ -599,70 +662,88 @@ export default function Dashboard() {
         {!loading && !!weekDays.length && (
           <CalChart
             days={weekDays}
-            target={targets?.calories || 2400}
-            tdee={profile?.tdee || 2910}
+            target={calTarget}
+            tdee={tdeeValue}
             windowDays={calWindow}
           />
         )}
-      </div>
+      </section>
 
-      <div className="card" style={{ marginBottom: 20 }}>
-        <div className="section-title">⚖️ Progreso de peso</div>
-          {loading && <p className="muted">Cargando…</p>}
-          {!loading && !weights.length && (
-            <div className="empty-state">Sin registros de peso</div>
-          )}
-          {!loading && !!weights.length && (
-            <>
-              <div className="net-big">
-                {weights[0].weight_kg}{" "}
-                <span className="muted" style={{ fontSize: 13 }}>
-                  kg
+      <section className="card chart-card">
+        <header className="card-head">
+          <div>
+            <h2 className="card-title">Progreso de peso</h2>
+            <p className="card-subline">
+              {weights.length
+                ? `Último registro ${new Date(
+                    weights[0].measured_at + "T12:00:00"
+                  ).toLocaleDateString("es", {
+                    day: "numeric",
+                    month: "short",
+                  })}`
+                : "Sin registros"}
+              {goalWeight ? ` · meta ${goalWeight} kg` : ""}
+            </p>
+          </div>
+          <div className="window-switch" role="group" aria-label="Período de peso">
+            {[
+              [14, "2S"],
+              [30, "1M"],
+              [90, "3M"],
+              [180, "6M"],
+              [365, "1A"],
+            ].map(([days, label]) => (
+              <button
+                key={label}
+                className={weightWindow === days ? "active" : ""}
+                onClick={() => setWeightWindow(days)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </header>
+
+        {loading && <p className="muted">Cargando…</p>}
+        {!loading && !weights.length && (
+          <div className="empty-state">Sin registros de peso</div>
+        )}
+        {!loading && !!weights.length && (
+          <>
+            <div className="kpi-row">
+              <div className="kpi-main">
+                <span className="kpi-value">{weights[0].weight_kg}</span>
+                <span className="kpi-unit">kg</span>
+              </div>
+              {weightDelta != null && (
+                <span
+                  className={`kpi-delta${
+                    weightDelta < 0 ? " down" : weightDelta > 0 ? " up" : ""
+                  }`}
+                >
+                  {weightDelta > 0 ? "+" : "−"}
+                  {Math.abs(weightDelta).toFixed(1)} kg
+                  <span>en {weightWindow} días</span>
                 </span>
-              </div>
-              <div className="muted" style={{ marginBottom: 8 }}>
-                Último registro:{" "}
-                {new Date(weights[0].measured_at + "T12:00:00").toLocaleDateString(
-                  "es",
-                  { day: "numeric", month: "short" }
-                )}
-                {profile?.goal_weight_kg
-                  ? ` · Objetivo: ${profile.goal_weight_kg} kg`
-                  : ""}
-              </div>
-              <div className="pills">
-                {[
-                  [14, "2S"],
-                  [30, "1M"],
-                  [90, "3M"],
-                  [180, "6M"],
-                  [365, "1A"],
-                ].map(([days, label]) => (
-                  <button
-                    key={label}
-                    className={`pill${weightWindow === days ? " active" : ""}`}
-                    onClick={() => setWeightWindow(days)}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-              <WeightChart
-                weights={weights}
-                goal={
-                  profile?.goal_weight_kg
-                    ? Number(profile.goal_weight_kg)
-                    : null
-                }
-                windowDays={weightWindow}
-              />
-            </>
-          )}
-      </div>
+              )}
+              {goalDistance != null && (
+                <span className="kpi-goal">
+                  Faltan <b>{goalDistance} kg</b> para la meta
+                </span>
+              )}
+            </div>
+            <WeightChart
+              weights={weights}
+              goal={goalWeight}
+              windowDays={weightWindow}
+            />
+          </>
+        )}
+      </section>
 
       <div className="grid-bottom">
         <div className="card">
-          <div className="section-title">🍽️ Últimas comidas registradas</div>
+          <h2 className="card-title">Últimas comidas</h2>
           {loading && <p className="muted">Cargando…</p>}
           {!loading && !recent.length && (
             <div className="empty-state">Sin comidas registradas</div>
@@ -687,7 +768,7 @@ export default function Dashboard() {
         </div>
 
         <div className="card">
-          <div className="section-title">⚡ Ejercicio de hoy</div>
+          <h2 className="card-title">Ejercicio de hoy</h2>
           {loading && <p className="muted">Cargando…</p>}
           {!loading && !workouts.length && (
             <div className="empty-state">Sin entrenamientos hoy</div>
@@ -696,43 +777,35 @@ export default function Dashboard() {
             workouts.map((w) => (
               <div className="meal-row" key={w.id}>
                 <div className="meal-name">
-                  💪 {w.type}
-                  <div className="muted">
-                    ⏱ {w.duration_min} min
+                  {w.type}
+                  <div className="meal-meta">
+                    {w.duration_min} min
                     {w.notes ? ` · ${w.notes}` : ""}
                   </div>
                 </div>
                 <div className="meal-cal">
-                  -{Math.round(w.calories_burned)} kcal
+                  −{Math.round(w.calories_burned)} kcal
                 </div>
               </div>
             ))}
           {!loading && !!workouts.length && targets && (
-            <>
-              <div className="section-title" style={{ marginTop: 16 }}>
-                ⚖️ Balance neto del día
+            <div className="net-box">
+              <div>
+                <div className="net-label">Balance neto del día</div>
+                <div className="net-big">{Math.round(netCalories)} kcal</div>
               </div>
-              <div className="net-big">
-                {Math.round(
-                  totals.calories -
-                    workouts.reduce(
-                      (s, w) => s + (Number(w.calories_burned) || 0),
-                      0
-                    )
-                )}{" "}
-                kcal
+              <div className="net-breakdown">
+                <span>
+                  <b>{Math.round(totals.calories)}</b> consumidas
+                </span>
+                <span>
+                  <b>{Math.round(burnedCalories)}</b> quemadas
+                </span>
+                <span>
+                  <b>{targets.calories}</b> objetivo
+                </span>
               </div>
-              <div className="muted">
-                🍽️ {Math.round(totals.calories)} consumidas · 🔥{" "}
-                {Math.round(
-                  workouts.reduce(
-                    (s, w) => s + (Number(w.calories_burned) || 0),
-                    0
-                  )
-                )}{" "}
-                quemadas · 🎯 {targets.calories} target
-              </div>
-            </>
+            </div>
           )}
         </div>
       </div>
@@ -836,22 +909,21 @@ export default function Dashboard() {
 function MealPlan() {
   const p = MEAL_PLAN;
   const meals = [
-    ["🌅 Desayuno", p.weekdays.desayuno],
-    ["☀️ Almuerzo", p.weekdays.almuerzo],
-    ["🏋️ Pre/Post Gym", p.weekdays.pre_gym],
-    ["🌙 Cena", p.weekdays.cena],
+    ["Desayuno", p.weekdays.desayuno],
+    ["Almuerzo", p.weekdays.almuerzo],
+    ["Pre/Post Gym", p.weekdays.pre_gym],
+    ["Cena", p.weekdays.cena],
   ];
   const head = {
-    fontSize: 11,
-    color: "var(--muted)",
-    textTransform: "uppercase",
-    letterSpacing: ".08em",
+    fontSize: 13,
+    fontWeight: 650,
+    color: "var(--text)",
     marginBottom: 12,
   };
   return (
     <div style={{ marginTop: 20 }}>
       <div className="card" style={{ marginBottom: 12 }}>
-        <div style={head}>📋 Plan Semanal — Lunes a Viernes</div>
+        <div style={head}>Plan semanal · lunes a viernes</div>
         <div>
           {meals.map(([label, m]) => (
             <div
@@ -885,28 +957,27 @@ function MealPlan() {
         </div>
       </div>
       <div className="card" style={{ marginBottom: 12 }}>
-        <div style={head}>🍕 Fines de Semana</div>
+        <div style={head}>Fines de semana</div>
         <div style={{ fontSize: 12 }}>{p.weekends.note}</div>
         <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
-          💡 {p.weekends.tip}
+          {p.weekends.tip}
         </div>
         <div style={{ fontSize: 12, color: "#34d399", marginTop: 4 }}>
           Target: {p.weekends.target_kcal}
         </div>
       </div>
       <div className="card">
-        <div style={head}>💡 Tips</div>
+        <div style={head}>Tips</div>
         <div
           style={{
-            fontSize: 11,
+            fontSize: 11.5,
+            fontWeight: 600,
             color: "var(--muted)",
-            textTransform: "uppercase",
-            letterSpacing: ".06em",
             marginBottom: 8,
             marginTop: 4,
           }}
         >
-          💡 Tips generales
+          Tips generales
         </div>
         {Object.entries(p.tips || {}).map(([k, v]) => (
           <div
@@ -927,15 +998,14 @@ function MealPlan() {
         ))}
         <div
           style={{
-            fontSize: 11,
+            fontSize: 11.5,
+            fontWeight: 600,
             color: "var(--muted)",
-            textTransform: "uppercase",
-            letterSpacing: ".06em",
             marginBottom: 8,
             marginTop: 12,
           }}
         >
-          🍽️ Tus hábitos
+          Tus hábitos
         </div>
         {Object.entries(p.habitos || {}).map(([k, v]) => (
           <div
@@ -993,14 +1063,14 @@ function WeightChart({ weights, goal, windowDays }) {
   const span = hi - lo || 1;
 
   const W = cw,
-    H = 260,
-    P = { l: 48, r: 12, t: 14, b: 34 };
+    H = 250,
+    P = { l: 46, r: 14, t: 16, b: 30 };
   const X = (i) =>
     P.l + (i / Math.max(slots.length - 1, 1)) * (W - P.l - P.r);
   const Y = (v) => P.t + (1 - (v - lo) / span) * (H - P.t - P.b);
 
-  // Ticks Y con paso lindo (1/2/5 × 10^n).
-  const rawStep = span / 5;
+  // Ticks Y con paso lindo (1/2/5 × 10^n), pocos para no ensuciar.
+  const rawStep = span / 4;
   const mag = Math.pow(10, Math.floor(Math.log10(rawStep)));
   const norm = rawStep / mag;
   const yStep = (norm >= 5 ? 5 : norm >= 2 ? 2 : 1) * mag;
@@ -1008,8 +1078,8 @@ function WeightChart({ weights, goal, windowDays }) {
   for (let v = Math.ceil(lo / yStep) * yStep; v <= hi + 1e-9; v += yStep)
     yTicks.push(Math.round(v * 100) / 100);
 
-  // Ticks X: hasta 8 fechas repartidas.
-  const m = Math.min(8, slots.length);
+  // Ticks X: menos en pantallas angostas.
+  const m = Math.min(cw < 520 ? 4 : 7, slots.length);
   const xIdx = [
     ...new Set(
       Array.from({ length: m }, (_, k) =>
@@ -1031,60 +1101,51 @@ function WeightChart({ weights, goal, windowDays }) {
     pts.length > 1
       ? `${line} L${pts[pts.length - 1].x.toFixed(1)},${Y(lo).toFixed(1)} L${pts[0].x.toFixed(1)},${Y(lo).toFixed(1)} Z`
       : "";
-  const diff = vals[vals.length - 1] - vals[0];
-
   return (
     <>
       <div ref={wrapRef}>
       <svg className="wchart" viewBox={`0 0 ${W} ${H}`}>
+        <defs>
+          <linearGradient id="wfill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.22" />
+            <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.02" />
+          </linearGradient>
+        </defs>
         {yTicks.map((v) => (
           <g key={v}>
-            <line x1={P.l} x2={W - P.r} y1={Y(v)} y2={Y(v)} stroke="#1e2a3a" />
+            <line
+              x1={P.l}
+              x2={W - P.r}
+              y1={Y(v)}
+              y2={Y(v)}
+              stroke="rgba(255,255,255,.06)"
+            />
             <text
-              x={P.l - 6}
+              x={P.l - 8}
               y={Y(v)}
               dy="0.32em"
               textAnchor="end"
-              fontSize="9"
+              fontSize="10"
               fill="#64748b"
             >
-              {v} kg
+              {v}
             </text>
           </g>
         ))}
         {xIdx.map((i) => (
-          <g key={slots[i].iso}>
-            <line
-              x1={X(i)}
-              x2={X(i)}
-              y1={P.t}
-              y2={H - P.b}
-              stroke="#1e2a3a"
-            />
-            <text
-              x={X(i)}
-              y={H - P.b + 13}
-              textAnchor="middle"
-              fontSize="9"
-              fill="#64748b"
-            >
-              {slots[i].date
-                .toLocaleDateString("es", { weekday: "short" })
-                .replace(".", "")}
-            </text>
-            <text
-              x={X(i)}
-              y={H - P.b + 25}
-              textAnchor="middle"
-              fontSize="8"
-              fill="#64748b"
-            >
-              {slots[i].date.toLocaleDateString("es", {
-                day: "numeric",
-                month: "short",
-              })}
-            </text>
-          </g>
+          <text
+            key={slots[i].iso}
+            x={X(i)}
+            y={H - P.b + 18}
+            textAnchor="middle"
+            fontSize="9.5"
+            fill="#64748b"
+          >
+            {slots[i].date.toLocaleDateString("es", {
+              day: "numeric",
+              month: "short",
+            })}
+          </text>
         ))}
         {goal != null && (
           <g>
@@ -1095,7 +1156,7 @@ function WeightChart({ weights, goal, windowDays }) {
               y2={Y(goal)}
               stroke="#34d399"
               strokeWidth="1.5"
-              strokeDasharray="6 4"
+              strokeDasharray="5 5"
             />
             <text
               x={W - P.r}
@@ -1109,7 +1170,7 @@ function WeightChart({ weights, goal, windowDays }) {
             </text>
           </g>
         )}
-        {area && <path d={area} fill="rgba(59,130,246,0.1)" />}
+        {area && <path d={area} fill="url(#wfill)" />}
         {line && (
           <path
             d={line}
@@ -1121,7 +1182,15 @@ function WeightChart({ weights, goal, windowDays }) {
           />
         )}
         {pts.map((p) => (
-          <circle key={p.iso} cx={p.x} cy={p.y} r="4" fill="#3b82f6">
+          <circle
+            key={p.iso}
+            cx={p.x}
+            cy={p.y}
+            r={pts.length > 40 ? 2.2 : 3.4}
+            fill="#3b82f6"
+            stroke="var(--card)"
+            strokeWidth="1"
+          >
             <title>
               {p.date.toLocaleDateString("es", {
                 weekday: "short",
@@ -1134,61 +1203,61 @@ function WeightChart({ weights, goal, windowDays }) {
         ))}
       </svg>
       </div>
-      {valids.length >= 2 && (
-        <div className="weight-note">
-          Cambio en el período: {diff > 0 ? "+" : ""}
-          {diff.toFixed(1)} kg
-        </div>
-      )}
     </>
   );
 }
 
 function CalChart({ days, target, tdee, windowDays }) {
+  const wrapRef = useRef(null);
+  const [cw, setCw] = useState(900);
+  useEffect(() => {
+    if (!wrapRef.current) return;
+    const ro = new ResizeObserver((es) =>
+      setCw(Math.max(260, Math.round(es[0].contentRect.width)))
+    );
+    ro.observe(wrapRef.current);
+    return () => ro.disconnect();
+  }, []);
+  // En celular no entran 7 etiquetas de fecha ni el valor sobre cada barra.
+  const compact = cw < 560;
   const vals = days.map((d) => d.calories);
   const max = Math.max(target * 1.15, tdee * 1.05, ...vals, 100);
   const fmtTick = (v) =>
     v >= 1000 ? `${(v / 1000).toFixed(1)}k` : `${Math.round(v)}`;
-  const step =
-    windowDays >= 90 ? 7 : days.length > 14 ? Math.ceil(days.length / 10) : 1;
-  const lineStep = windowDays >= 90 ? 3 : 1;
+  const step = compact
+    ? Math.max(1, Math.ceil(days.length / 4))
+    : windowDays >= 90
+    ? 7
+    : days.length > 14
+    ? Math.ceil(days.length / 10)
+    : 1;
   const gap = days.length > 30 ? 2 : days.length > 14 ? 3 : 6;
-  // División del eje y cada 500 kcal, como el original.
+  const barMax = days.length <= 14 ? 56 : days.length <= 30 ? 22 : 10;
+  // Divisiones "redondas" del eje y (500 / 1000, según el alto del gráfico).
+  const yStep = max > 4200 ? 1000 : 500;
   const yTicks = [];
-  for (let v = 0; v < max; v += 500) yTicks.push(v);
-  const topTick = yTicks.length ? yTicks[yTicks.length - 1] : 0;
+  for (let v = 0; v <= max; v += yStep) yTicks.push(v);
   return (
-    <div className="vchart">
+    <div className="vchart" ref={wrapRef}>
       <div className="voverlay">
-        {days.map(
-          (d, i) =>
-            i % lineStep === 0 && (
-              <div
-                key={d.key}
-                className="vgridv"
-                style={{ left: `${(i / days.length) * 100}%` }}
-              />
-            )
-        )}
         {yTicks.map((v) => (
           <div key={v} className="vgrid" style={{ bottom: `${(v / max) * 100}%` }}>
             <span>{fmtTick(v)}</span>
           </div>
         ))}
-        {max - topTick > 1 && (
-          <div className="vgrid" style={{ bottom: "100%" }}>
-            <span className="below">{fmtTick(max)}</span>
-          </div>
-        )}
         <div className="vline tdee" style={{ bottom: `${(tdee / max) * 100}%` }}>
-          <span className={(tdee / max) * 100 > 90 ? "below" : undefined}>
-            TDEE {tdee}
-          </span>
+          {!compact && (
+            <span className={(tdee / max) * 100 > 88 ? "below" : undefined}>
+              TDEE {tdee}
+            </span>
+          )}
         </div>
         <div className="vline" style={{ bottom: `${(target / max) * 100}%` }}>
-          <span className={(target / max) * 100 > 90 ? "below" : undefined}>
-            Límite {target}
-          </span>
+          {!compact && (
+            <span className={(target / max) * 100 > 88 ? "below" : undefined}>
+              Límite {target}
+            </span>
+          )}
         </div>
       </div>
       <div className="vcols" style={{ gap }}>
@@ -1221,13 +1290,16 @@ function CalChart({ days, target, tdee, windowDays }) {
               title={`${full}: ${d.calories} kcal`}
             >
               <div className="vval">
-                {windowDays <= 14 && d.calories > 0 ? d.calories : ""}
+                {!compact && windowDays <= 14 && d.calories > 0
+                  ? d.calories.toLocaleString("es-AR")
+                  : ""}
               </div>
               <div className="vbarwrap">
                 <div
                   className="vbar"
                   style={{
                     height: `${h}%`,
+                    maxWidth: barMax,
                     background:
                       d.calories > target ? "var(--red)" : "var(--blue)",
                   }}
@@ -1235,9 +1307,7 @@ function CalChart({ days, target, tdee, windowDays }) {
               </div>
               <div className="vday">
                 {(i % step === 0 || isToday) &&
-                  (windowDays > 14 ? (
-                    label
-                  ) : (
+                  (windowDays > 14 || compact ? label : (
                     <>
                       <span>{d.label}</span>
                       <span className="vday-date">{dateStr}</span>

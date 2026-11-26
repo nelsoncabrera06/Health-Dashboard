@@ -131,7 +131,7 @@ export default function AuthModal({ open, onClose, initialMode = "login" }) {
               onClick={handleDemo}
               disabled={busy}
             >
-              {busy ? "…" : "⚡ Probar demo sin registrarme"}
+              {busy ? "…" : "Probar la demo sin registrarme"}
             </button>
             <div className="auth-divider">
               <span>o ingresá con tu cuenta</span>

@@ -37,7 +37,7 @@ function Field({ label, suffix, value, onChange, placeholder, hint }) {
 
 // Wizard de onboarding / edición del perfil (3 pasos).
 // Se muestra solo si `profiles.onboarded_at` es null; después se abre desde
-// "✏️ Editar" en la tarjeta de perfil del dashboard.
+// "Editar" en la ventana "Mis datos".
 export default function Onboarding({
   open,
   profile,
@@ -147,7 +147,7 @@ export default function Onboarding({
         <div className="onb-head">
           <div>
             <div className="onb-title">
-              {firstTime ? "👋 Armemos tu perfil" : "✏️ Editar perfil"}
+              {firstTime ? "Armemos tu perfil" : "Editar perfil"}
             </div>
             <div className="onb-sub">
               {firstTime
@@ -297,7 +297,7 @@ export default function Onboarding({
               </div>
 
               <div className="onb-preview">
-                <div className="onb-preview-head">🎯 Tus objetivos diarios</div>
+                <div className="onb-preview-head">Tus objetivos diarios</div>
                 {targets ? (
                   <>
                     <div className="onb-preview-grid">
