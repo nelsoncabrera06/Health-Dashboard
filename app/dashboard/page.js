@@ -56,6 +56,7 @@ const METRICS = [
     label: "Calorías",
     unit: "kcal",
     color: "var(--orange)",
+    bar: "var(--blue)",
     targetLabel: "Límite",
     ceiling: true,
   },
@@ -742,7 +743,7 @@ export default function Dashboard() {
           <span className="legend-item">
             <i
               className="lg-bar"
-              style={{ background: activeMetric.color }}
+              style={{ background: activeMetric.bar || activeMetric.color }}
             />{" "}
             Consumido
           </span>
@@ -774,7 +775,7 @@ export default function Dashboard() {
             tdee={metric === "calories" ? tdeeValue : null}
             windowDays={calWindow}
             unit={activeMetric.unit}
-            color={activeMetric.color}
+            color={activeMetric.bar || activeMetric.color}
             overColor={activeMetric.ceiling ? "var(--red)" : null}
             targetLabel={activeMetric.targetLabel}
           />

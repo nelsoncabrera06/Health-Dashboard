@@ -553,7 +553,7 @@ export default function ChatWidget({ targets, userId, isDemo, diets, country, on
         <div className="chat-head">
           <div>
             <div className="chat-title-row">
-              <span className="chat-title">Asistente</span>
+              <span className="chat-title">Asistente AI</span>
               {usageInfo && (
                 <span
                   className={`chat-usage-badge${

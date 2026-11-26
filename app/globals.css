@@ -52,7 +52,55 @@ a { color: var(--blue); }
 }
 .btn-row { display: flex; gap: 12px; justify-content: center; }
 /* ── Dashboard: ancho completo como el original ── */
-.dash { width: 100%; }
+.dash { width: 100%; position: relative; z-index: 1; }
+
+/* Fondo del dashboard: el mismo lenguaje del landing (degradés azul/teal/violeta
+   muy suaves + cuadriculado que se desvanece hacia abajo). Va en dos capas
+   `fixed` detrás del contenido, así el fondo no scrollea con la página.
+   Se activa solo cuando hay dashboard (`:has`), no en el resto de la app. */
+body:has(.dash)::before,
+body:has(.dash)::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+body:has(.dash)::before {
+  background: radial-gradient(
+      1000px 560px at 16% -10%,
+      rgba(59, 130, 246, 0.26),
+      transparent 70%
+    ),
+    radial-gradient(
+      820px 520px at 94% 0%,
+      rgba(20, 184, 166, 0.18),
+      transparent 72%
+    ),
+    radial-gradient(
+      760px 540px at 55% 105%,
+      rgba(168, 85, 247, 0.12),
+      transparent 75%
+    );
+}
+body:has(.dash)::after {
+  background-image: linear-gradient(
+      rgba(148, 163, 184, 0.06) 1px,
+      transparent 1px
+    ),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.06) 1px, transparent 1px);
+  background-size: 64px 64px;
+  -webkit-mask-image: radial-gradient(
+    ellipse 85% 55% at 50% 0%,
+    #000 30%,
+    transparent 100%
+  );
+  mask-image: radial-gradient(
+    ellipse 85% 55% at 50% 0%,
+    #000 30%,
+    transparent 100%
+  );
+}
 
 /* Demo: aviso de que los registros viven solo en la pestaña. */
 .demo-banner {
