@@ -15,7 +15,7 @@ import {
   getTargets,
   getTodayMeals,
   getTodayWorkouts,
-  groupCaloriesByDay,
+  groupNutrientByDay,
   sumMacros,
 } from "../../lib/health";
 import { MEAL_PLAN } from "../../lib/mealPlan";
@@ -48,7 +48,54 @@ function fmtEatenAt(iso) {
 
 const EMPTY_FORM = { meal: "", calories: "", protein: "", carbs: "", fat: "" };
 
-function MacroCard({ label, value, target, unit, color, type, info }) {
+// Las 4 tarjetas de macros son también el selector del gráfico grande: al
+// tocar una, el gráfico de abajo muestra esa serie (default: calorías).
+const METRICS = [
+  {
+    key: "calories",
+    label: "Calorías",
+    unit: "kcal",
+    color: "var(--orange)",
+    targetLabel: "Límite",
+    ceiling: true,
+  },
+  {
+    key: "protein",
+    label: "Proteína",
+    unit: "g",
+    color: "var(--blue)",
+    targetLabel: "Objetivo",
+    ceiling: false,
+  },
+  {
+    key: "carbs",
+    label: "Carbos",
+    unit: "g",
+    color: "var(--yellow)",
+    targetLabel: "Objetivo",
+    ceiling: false,
+  },
+  {
+    key: "fat",
+    label: "Grasas",
+    unit: "g",
+    color: "var(--teal)",
+    targetLabel: "Límite",
+    ceiling: true,
+  },
+];
+
+function MacroCard({
+  label,
+  value,
+  target,
+  unit,
+  color,
+  type,
+  info,
+  active,
+  onSelect,
+}) {
   const [showTooltip, setShowTooltip] = useState(false);
   const v = Math.round(value || 0);
   const tgt = Math.round(target || 0);
@@ -90,7 +137,21 @@ function MacroCard({ label, value, target, unit, color, type, info }) {
   }
 
   return (
-    <div className="card">
+    <div
+      className={`card macro-card${active ? " active" : ""}`}
+      style={{ "--macro": color }}
+      role="button"
+      tabIndex={0}
+      aria-pressed={Boolean(active)}
+      title={active ? "Es el gráfico que estás viendo" : `Ver el gráfico de ${label}`}
+      onClick={onSelect}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect?.();
+        }
+      }}
+    >
       <div className="card-header-row">
         <div className="card-label">{label}</div>
         {info && (
@@ -151,6 +212,8 @@ export default function Dashboard() {
   const [workouts, setWorkouts] = useState([]);
   const [calMeals, setCalMeals] = useState([]);
   const [calWindow, setCalWindow] = useState(7);
+  // Qué serie muestra el gráfico grande: se elige tocando una tarjeta de macro.
+  const [metric, setMetric] = useState("calories");
   const [weights, setWeights] = useState([]);
   const [weightWindow, setWeightWindow] = useState(30);
   const [loading, setLoading] = useState(true);
@@ -256,8 +319,8 @@ export default function Dashboard() {
   }, [loading, profile]);
 
   useEffect(() => {
-    setWeekDays(groupCaloriesByDay(calMeals, calWindow));
-  }, [calMeals, calWindow]);
+    setWeekDays(groupNutrientByDay(calMeals, calWindow, metric));
+  }, [calMeals, calWindow, metric]);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -366,7 +429,9 @@ export default function Dashboard() {
   const totals = sumMacros(todayMeals);
 
   // Valores derivados de las dos tarjetas grandes (calorías y peso).
-  const calTarget = targets?.calories || 2400;
+  const calTarget = Math.round(
+    targets?.[metric] || (metric === "calories" ? 2400 : 0)
+  );
   const tdeeValue = profile?.tdee || 2910;
   const goalWeight = profile?.goal_weight_kg
     ? Number(profile.goal_weight_kg)
@@ -377,13 +442,15 @@ export default function Dashboard() {
   );
   const netCalories = totals.calories - burnedCalories;
 
-  const calWithData = weekDays.filter((d) => d.calories > 0);
+  const activeMetric =
+    METRICS.find((m) => m.key === metric) || METRICS[0];
+  const calWithData = weekDays.filter((d) => d.value > 0);
   const calAvg = calWithData.length
     ? Math.round(
-        calWithData.reduce((s, d) => s + d.calories, 0) / calWithData.length
+        calWithData.reduce((s, d) => s + d.value, 0) / calWithData.length
       )
     : 0;
-  const calOverDays = weekDays.filter((d) => d.calories > calTarget).length;
+  const calOverDays = weekDays.filter((d) => d.value > calTarget).length;
 
   // Cambio dentro de la ventana elegida (el gráfico usa la misma).
   const winStart = new Date();
@@ -560,6 +627,9 @@ export default function Dashboard() {
           <>
             <MacroCard
               label="Calorías"
+              metric="calories"
+              active={metric === "calories"}
+              onSelect={() => setMetric("calories")}
               value={totals.calories}
               target={targets.calories}
               unit=""
@@ -572,6 +642,9 @@ export default function Dashboard() {
             />
             <MacroCard
               label="Proteína"
+              metric="protein"
+              active={metric === "protein"}
+              onSelect={() => setMetric("protein")}
               value={totals.protein}
               target={targets.protein}
               unit="g"
@@ -584,6 +657,9 @@ export default function Dashboard() {
             />
             <MacroCard
               label="Carbos"
+              metric="carbs"
+              active={metric === "carbs"}
+              onSelect={() => setMetric("carbs")}
               value={totals.carbs}
               target={targets.carbs}
               unit="g"
@@ -596,6 +672,9 @@ export default function Dashboard() {
             />
             <MacroCard
               label="Grasas"
+              metric="fat"
+              active={metric === "fat"}
+              onSelect={() => setMetric("fat")}
               value={totals.fat}
               target={targets.fat}
               unit="g"
@@ -610,19 +689,38 @@ export default function Dashboard() {
         )}
       </div>
 
+      {!loading && !!targets && (
+        <p className="macro-hint">
+          Tocá una tarjeta para ver esa serie en el gráfico de abajo.
+        </p>
+      )}
+
       <section className="card chart-card">
         <header className="card-head">
           <div>
-            <h2 className="card-title">Calorías</h2>
+            <h2 className="card-title">
+              <span
+                className="title-dot"
+                style={{ background: activeMetric.color }}
+                aria-hidden="true"
+              />
+              {activeMetric.label}
+            </h2>
             <p className="card-subline">
               {calWindow === 7 ? "Últimos 7 días" : `Últimos ${calWindow} días`}
-              {calAvg > 0 ? ` · promedio ${calAvg.toLocaleString("es-AR")} kcal` : ""}
+              {calAvg > 0
+                ? ` · promedio ${calAvg.toLocaleString("es-AR")} ${
+                    activeMetric.unit === "g" ? "g" : "kcal"
+                  }`
+                : ""}
               {calOverDays > 0
-                ? ` · ${calOverDays} ${calOverDays === 1 ? "día" : "días"} sobre el límite`
+                ? ` · ${calOverDays} ${calOverDays === 1 ? "día" : "días"} ${
+                    activeMetric.ceiling ? "sobre el límite" : "sobre el objetivo"
+                  }`
                 : ""}
             </p>
           </div>
-          <div className="window-switch" role="group" aria-label="Período de calorías">
+          <div className="window-switch" role="group" aria-label="Período del gráfico">
             {[
               [7, "7D"],
               [14, "2S"],
@@ -642,17 +740,27 @@ export default function Dashboard() {
 
         <div className="chart-legend">
           <span className="legend-item">
-            <i className="lg-bar" /> Consumido
+            <i
+              className="lg-bar"
+              style={{ background: activeMetric.color }}
+            />{" "}
+            Consumido
           </span>
+          {activeMetric.ceiling && (
+            <span className="legend-item">
+              <i className="lg-bar over" /> Sobre el límite
+            </span>
+          )}
           <span className="legend-item">
-            <i className="lg-bar over" /> Sobre el límite
+            <i className="lg-line goal" /> {activeMetric.targetLabel}{" "}
+            {calTarget}
+            {activeMetric.unit === "g" ? " g" : " kcal"}
           </span>
-          <span className="legend-item">
-            <i className="lg-line limit" /> Límite {calTarget}
-          </span>
-          <span className="legend-item">
-            <i className="lg-line tdee" /> TDEE {tdeeValue}
-          </span>
+          {metric === "calories" && (
+            <span className="legend-item">
+              <i className="lg-line tdee" /> TDEE {tdeeValue}
+            </span>
+          )}
         </div>
 
         {loading && <p className="muted">Cargando…</p>}
@@ -660,11 +768,15 @@ export default function Dashboard() {
           <div className="empty-state">Sin datos</div>
         )}
         {!loading && !!weekDays.length && (
-          <CalChart
+          <MetricChart
             days={weekDays}
             target={calTarget}
-            tdee={tdeeValue}
+            tdee={metric === "calories" ? tdeeValue : null}
             windowDays={calWindow}
+            unit={activeMetric.unit}
+            color={activeMetric.color}
+            overColor={activeMetric.ceiling ? "var(--red)" : null}
+            targetLabel={activeMetric.targetLabel}
           />
         )}
       </section>
@@ -1207,7 +1319,16 @@ function WeightChart({ weights, goal, windowDays }) {
   );
 }
 
-function CalChart({ days, target, tdee, windowDays }) {
+function MetricChart({
+  days,
+  target,
+  tdee,
+  windowDays,
+  unit,
+  color,
+  overColor,
+  targetLabel,
+}) {
   const wrapRef = useRef(null);
   const [cw, setCw] = useState(900);
   useEffect(() => {
@@ -1220,8 +1341,16 @@ function CalChart({ days, target, tdee, windowDays }) {
   }, []);
   // En celular no entran 7 etiquetas de fecha ni el valor sobre cada barra.
   const compact = cw < 560;
-  const vals = days.map((d) => d.calories);
-  const max = Math.max(target * 1.15, tdee * 1.05, ...vals, 100);
+  const vals = days.map((d) => d.value);
+  const maxVal = Math.max(...vals, 0);
+  // Calorías: el techo de la escala lo marcan el límite y el TDEE (así las
+  // líneas entran en el gráfico). Macros: objetivo × 1.3 o el día más alto.
+  const max = Math.max(
+    target * (tdee ? 1.15 : 1.3),
+    tdee ? tdee * 1.05 : 0,
+    maxVal * 1.05,
+    unit === "g" ? 10 : 100
+  );
   const fmtTick = (v) =>
     v >= 1000 ? `${(v / 1000).toFixed(1)}k` : `${Math.round(v)}`;
   const step = compact
@@ -1233,10 +1362,25 @@ function CalChart({ days, target, tdee, windowDays }) {
     : 1;
   const gap = days.length > 30 ? 2 : days.length > 14 ? 3 : 6;
   const barMax = days.length <= 14 ? 56 : days.length <= 30 ? 22 : 10;
-  // Divisiones "redondas" del eje y (500 / 1000, según el alto del gráfico).
-  const yStep = max > 4200 ? 1000 : 500;
+
+  // Divisiones del eje y: kcal en múltiplos de 500/1000; gramos con un paso
+  // "lindo" (5/10/20/25/50…) para que no aparezcan 37,5 g.
+  let yStep;
+  if (unit !== "g") {
+    yStep = max > 4200 ? 1000 : 500;
+  } else {
+    const raw = max / 4;
+    const pow = Math.pow(10, Math.floor(Math.log10(raw || 1)));
+    const norm = raw / pow;
+    const mult =
+      norm < 1.5 ? 1 : norm < 2.25 ? 2 : norm < 3.5 ? 2.5 : norm < 7.5 ? 5 : 10;
+    yStep = Math.max(5, mult * pow);
+  }
   const yTicks = [];
   for (let v = 0; v <= max; v += yStep) yTicks.push(v);
+  // Sin TDEE (macros) la línea es la meta: verde, igual que la "Meta" del peso.
+  const goal = tdee == null;
+
   return (
     <div className="vchart" ref={wrapRef}>
       <div className="voverlay">
@@ -1249,62 +1393,61 @@ function CalChart({ days, target, tdee, windowDays }) {
             peso (`strokeWidth 2`, `dasharray 6 5`). En porcentajes del alto del
             área para no depender de medir en px. */}
         <svg className="vlines" aria-hidden="true">
+          {tdee != null && (
+            <line
+              className="tdee"
+              x1="0"
+              x2="100%"
+              y1={`${100 - (tdee / max) * 100}%`}
+              y2={`${100 - (tdee / max) * 100}%`}
+            />
+          )}
           <line
-            className="tdee"
-            x1="0"
-            x2="100%"
-            y1={`${100 - (tdee / max) * 100}%`}
-            y2={`${100 - (tdee / max) * 100}%`}
-          />
-          <line
-            className="limit"
+            className={goal ? "goal" : "limit"}
             x1="0"
             x2="100%"
             y1={`${100 - (target / max) * 100}%`}
             y2={`${100 - (target / max) * 100}%`}
           />
         </svg>
-        {/* Las dos etiquetas van SIEMPRE arriba de su línea. Para que la de
-            arriba no se salga, el área del gráfico deja 16px de aire arriba
-            (`.vval` / `.voverlay` en 31px). Si una se pone abajo, se cruza con
-            la otra y una tapa a la otra. */}
+        {/* Las etiquetas van SIEMPRE arriba de su línea (si una va abajo se
+            cruza con la otra). El área deja 16px de aire arriba para que la de
+            arriba no se salga. Las dos, a la derecha y sin fondo. */}
         {!compact && (
           <>
+            {tdee != null && (
+              <div
+                className="vline-label tdee"
+                style={{ bottom: `calc(${(tdee / max) * 100}% + 7px)` }}
+              >
+                TDEE {tdee}
+              </div>
+            )}
             <div
-              className="vline-label tdee"
-              style={{ bottom: `calc(${(tdee / max) * 100}% + 7px)` }}
-            >
-              TDEE {tdee}
-            </div>
-            <div
-              className="vline-label"
+              className={`vline-label${goal ? " goal" : ""}`}
               style={{ bottom: `calc(${(target / max) * 100}% + 7px)` }}
             >
-              Límite {target}
+              {targetLabel} {target}
+              {unit === "g" ? " g" : ""}
             </div>
           </>
         )}
       </div>
       <div className="vcols" style={{ gap }}>
         {days.map((d, i) => {
-          const h = Math.max(
-            d.calories > 0 ? 2 : 0,
-            (d.calories / max) * 100
-          );
+          const h = Math.max(d.value > 0 ? 2 : 0, (d.value / max) * 100);
           const isToday = i === days.length - 1;
-          const full = new Date(d.key).toLocaleDateString("es", {
+          const date = new Date(d.key);
+          const full = date.toLocaleDateString("es", {
             weekday: "short",
             day: "numeric",
             month: "short",
           });
           const label =
             windowDays > 14
-              ? new Date(d.key).toLocaleDateString("es", {
-                  day: "numeric",
-                  month: "short",
-                })
+              ? date.toLocaleDateString("es", { day: "numeric", month: "short" })
               : d.label;
-          const dateStr = new Date(d.key).toLocaleDateString("es", {
+          const dateStr = date.toLocaleDateString("es", {
             day: "numeric",
             month: "short",
           });
@@ -1312,11 +1455,11 @@ function CalChart({ days, target, tdee, windowDays }) {
             <div
               key={d.key}
               className={`vcol${isToday ? " vtoday" : ""}`}
-              title={`${full}: ${d.calories} kcal`}
+              title={`${full}: ${d.value}${unit === "g" ? " g" : " kcal"}`}
             >
               <div className="vval">
-                {!compact && windowDays <= 14 && d.calories > 0
-                  ? d.calories.toLocaleString("es-AR")
+                {!compact && windowDays <= 14 && d.value > 0
+                  ? d.value.toLocaleString("es-AR")
                   : ""}
               </div>
               <div className="vbarwrap">
@@ -1326,7 +1469,7 @@ function CalChart({ days, target, tdee, windowDays }) {
                     height: `${h}%`,
                     maxWidth: barMax,
                     background:
-                      d.calories > target ? "var(--red)" : "var(--blue)",
+                      overColor && d.value > target ? overColor : color,
                   }}
                 />
               </div>
