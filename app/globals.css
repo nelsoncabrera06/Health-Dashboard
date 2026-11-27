@@ -1006,10 +1006,13 @@ body.chat-resizing { user-select: none; transition: none; }
 .onb-steps { display: flex; gap: 8px; padding: 0 24px 14px; }
 .onb-step {
   display: flex; align-items: center; gap: 6px; flex: 1;
-  font-size: 11px; color: var(--muted);
-  padding-bottom: 8px; border-bottom: 2px solid var(--border);
+  font: inherit; font-size: 11px; color: var(--muted);
+  background: none; border: 0; border-bottom: 2px solid var(--border);
+  padding: 0 0 8px; text-align: left; cursor: pointer;
   white-space: nowrap;
 }
+.onb-step:hover { color: var(--text); }
+.onb-step:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 .onb-step.active { color: var(--text); border-color: var(--blue); }
 .onb-step.done { color: var(--teal); border-color: var(--teal); }
 .onb-step-num {
@@ -1064,6 +1067,13 @@ body.chat-resizing { user-select: none; transition: none; }
 .onb-field select:focus { outline: none; border-color: var(--blue); }
 .onb-field select option { background: var(--card); color: var(--text); }
 .onb-country { margin-top: 14px; }
+.onb-other { margin-top: 12px; }
+.onb-other input {
+  width: 100%; background: var(--bg); border: 1px solid var(--border);
+  color: var(--text); border-radius: 9px; padding: 10px 12px;
+  font-size: 14px; font-family: inherit;
+}
+.onb-other input:focus { outline: none; border-color: var(--blue); }
 .onb-suffix {
   position: absolute; right: 12px; font-size: 11px;
   color: var(--muted); font-weight: 500; pointer-events: none;

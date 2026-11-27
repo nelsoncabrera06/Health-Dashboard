@@ -11,6 +11,7 @@ import {
   dietLabel,
   goalLabel,
   sexLabel,
+  supplementLabel,
 } from "../lib/profile";
 
 // Una línea de la lista: "Etiqueta: valor", todo alineado a la izquierda. Se lee
@@ -106,6 +107,10 @@ export default function ProfileModal({
 
   const weight = currentWeight ? Number(currentWeight) : null;
   const goal = profile?.goal_weight_kg ? Number(profile.goal_weight_kg) : null;
+  const supplements = Array.isArray(profile?.supplements)
+    ? profile.supplements
+    : [];
+  const otherSupplements = profile?.supplements_other?.trim() || "";
 
   // Un perfil recién creado puede no tener nada cargado todavía: sin esto
   // quedarían cajas vacías.
@@ -250,6 +255,25 @@ export default function ProfileModal({
                         ))
                       ) : (
                         <span className="muted">Sin preferencias cargadas</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="profile-row">
+                    <span className="profile-row-label">Suplementos:</span>
+                    <div className="diet-tags">
+                      {supplements.length || otherSupplements ? (
+                        <>
+                          {supplements.map((tag) => (
+                            <span className="diet-tag" key={tag}>
+                              {supplementLabel(tag)}
+                            </span>
+                          ))}
+                          {otherSupplements && (
+                            <span className="diet-tag">{otherSupplements}</span>
+                          )}
+                        </>
+                      ) : (
+                        <span className="muted">Sin suplementos cargados</span>
                       )}
                     </div>
                   </div>

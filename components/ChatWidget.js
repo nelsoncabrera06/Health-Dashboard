@@ -6,7 +6,7 @@ import { addMeal, addWeight } from "../lib/health";
 import { addDemoMeal, upsertDemoWeight } from "../lib/demoSandbox";
 import { validateImageFile, compressImage } from "../lib/chatPhoto";
 import { VoiceRecorder, formatAudioTime, MAX_AUDIO_SECONDS } from "../lib/chatAudio";
-import { dietLabel, countryLabel, goalLabel } from "../lib/profile";
+import { dietLabel, countryLabel, goalLabel, supplementLabel } from "../lib/profile";
 
 // Límite de adjunto y compresión: ver lib/chatPhoto.js.
 const MIN_W = 320;
@@ -117,7 +117,7 @@ const INITIAL_MSGS = [
   },
 ];
 
-export default function ChatWidget({ targets, userId, isDemo, diets, country, goal, onSaved, mode = "side" }) {
+export default function ChatWidget({ targets, userId, isDemo, diets, country, goal, supplements, supplementsOther, onSaved, mode = "side" }) {
   const [open, setOpen] = useState(false);
   const [msgs, setMsgs] = useState(INITIAL_MSGS);
   const [input, setInput] = useState("");
@@ -359,6 +359,17 @@ export default function ChatWidget({ targets, userId, isDemo, diets, country, go
               : undefined,
           country: country ? countryLabel(country) : undefined,
           goal: goal ? goalLabel(goal) : undefined,
+          supplements: (() => {
+            const list = [
+              ...(Array.isArray(supplements)
+                ? supplements.map(supplementLabel)
+                : []),
+              ...(typeof supplementsOther === "string" && supplementsOther.trim()
+                ? [supplementsOther.trim()]
+                : []),
+            ];
+            return list.length ? list : undefined;
+          })(),
         }),
       });
       const out = await r.json();

@@ -932,6 +932,8 @@ export default function Dashboard() {
         diets={profile?.diet_tags}
         country={profile?.country}
         goal={profile?.goal_type}
+        supplements={profile?.supplements}
+        supplementsOther={profile?.supplements_other}
         onSaved={load}
         mode={chatMode}
       />

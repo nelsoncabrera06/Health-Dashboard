@@ -8,6 +8,7 @@ import {
   COUNTRIES,
   DIET_TAGS,
   SEXES,
+  SUPPLEMENT_TAGS,
   computeTargets,
   emptyForm,
   goalLabel,
@@ -92,6 +93,13 @@ export default function Onboarding({
         ? f.diets.filter((d) => d !== value)
         : [...f.diets, value],
     }));
+  const toggleSupplement = (value) =>
+    setForm((f) => ({
+      ...f,
+      supplements: f.supplements.includes(value)
+        ? f.supplements.filter((s) => s !== value)
+        : [...f.supplements, value],
+    }));
 
   const inRange = (v, lo, hi) => Number.isFinite(v) && v >= lo && v <= hi;
 
@@ -124,6 +132,28 @@ export default function Onboarding({
   const back = () => {
     setError("");
     setStep((s) => Math.max(0, s - 1));
+  };
+
+  // Los pasos del encabezado son clickeables. Para avanzar se valida lo que
+  // haya entre el paso actual y el destino: si falta algo, te deja en el primer
+  // paso incompleto con el mensaje, en vez de saltarte datos obligatorios.
+  const goToStep = (target) => {
+    if (target === step) return;
+    if (target < step) {
+      setError("");
+      setStep(target);
+      return;
+    }
+    for (let s = step; s < target; s++) {
+      const msg = validateStep(s);
+      if (msg) {
+        setError(msg);
+        setStep(s);
+        return;
+      }
+    }
+    setError("");
+    setStep(target);
   };
 
   const submit = async () => {
@@ -179,15 +209,18 @@ export default function Onboarding({
 
         <div className="onb-steps">
           {STEPS.map((label, i) => (
-            <div
+            <button
               key={label}
+              type="button"
               className={`onb-step${i === step ? " active" : ""}${
                 i < step ? " done" : ""
               }`}
+              onClick={() => goToStep(i)}
+              aria-current={i === step ? "step" : undefined}
             >
               <span className="onb-step-num">{i < step ? "✓" : i + 1}</span>
               {label}
-            </div>
+            </button>
           ))}
         </div>
 
@@ -405,6 +438,40 @@ export default function Onboarding({
               <p className="onb-note">
                 El chat las tiene en cuenta al estimar y sugerir comidas. Podés
                 elegir varias o ninguna.
+              </p>
+
+              <div className="onb-label">
+                Suplementos <span className="onb-optional">(opcional)</span>
+              </div>
+              <div className="onb-chips">
+                {SUPPLEMENT_TAGS.map((s) => {
+                  const active = form.supplements.includes(s.value);
+                  return (
+                    <button
+                      key={s.value}
+                      type="button"
+                      className={`onb-chip${active ? " active" : ""}`}
+                      onClick={() => toggleSupplement(s.value)}
+                      aria-pressed={active}
+                    >
+                      {s.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <label className="onb-field onb-other">
+                <span>Otros (opcional)</span>
+                <input
+                  value={form.supplementsOther}
+                  onChange={(e) => set("supplementsOther", e.target.value)}
+                  placeholder="Chía, ashwagandha, quemadores…"
+                  maxLength={120}
+                  autoComplete="off"
+                />
+              </label>
+              <p className="onb-note">
+                Solo para tener contexto: no es una recomendación. Si no tomás
+                ningún suplemento, dejalo vacío.
               </p>
 
               <div className="onb-review">

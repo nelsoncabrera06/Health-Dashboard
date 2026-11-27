@@ -133,7 +133,9 @@ update profiles set
   carbs_target = 220,
   fat_target = 70,
   tdee = 2910,
-  diet_tags = '{}'
+  diet_tags = '{}',
+  supplements = '{}',
+  supplements_other = null
 where id = (select uid from _demo_seed);
 
 drop table _demo_seed;

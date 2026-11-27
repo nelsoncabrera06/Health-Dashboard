@@ -263,6 +263,12 @@ export async function POST(req) {
         .map((d) => d.trim().slice(0, 40))
         .slice(0, 10)
     : [];
+  const supplements = Array.isArray(body?.supplements)
+    ? body.supplements
+        .filter((s) => typeof s === "string" && s.trim())
+        .map((s) => s.trim().slice(0, 40))
+        .slice(0, 10)
+    : [];
   const country =
     typeof body?.country === "string" && body.country.trim()
       ? body.country.trim().slice(0, 60)
@@ -289,6 +295,12 @@ export async function POST(req) {
       `Restricciones alimentarias del usuario: ${diet.join(
         ", "
       )}. Tenelas en cuenta al estimar y al sugerir comidas.`
+    );
+  if (supplements.length)
+    parts.push(
+      `Suplementos habituales del usuario: ${supplements.join(
+        ", "
+      )}. Son habituales: no asumas que los tomó hoy ni sumes sus calorías salvo que los mencione. No recomiendes empezar a tomarlos ni des dosis médicas; si pregunta, respondé información general y sugerí consultar a un profesional.`
     );
   const sys = parts.join("\n");
 

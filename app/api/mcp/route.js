@@ -79,7 +79,7 @@ function buildServer(auth) {
     {
       title: "Perfil del usuario",
       description:
-        "Devuelve el perfil: datos personales, objetivo (pérdida de grasa, volumen, etc.), objetivos diarios (targets de calorías y macros), TDEE, dietas y la zona horaria con la que se calculan los días. Llamala primero para saber en qué unidades y zona trabajar.",
+        "Devuelve el perfil: datos personales, objetivo (pérdida de grasa, volumen, etc.), objetivos diarios (targets de calorías y macros), TDEE, dietas, suplementos habituales y la zona horaria con la que se calculan los días. Llamala primero para saber en qué unidades y zona trabajar.",
       inputSchema: {},
     },
     async () => {
