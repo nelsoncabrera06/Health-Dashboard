@@ -124,7 +124,6 @@ update profiles set
   sex = 'male',
   age = 30,
   country = 'AR',
-  goal_type = 'fat_loss',
   activity = 'moderate',
   height_cm = 178,
   goal_weight_kg = 90,
@@ -133,9 +132,7 @@ update profiles set
   carbs_target = 220,
   fat_target = 70,
   tdee = 2910,
-  diet_tags = '{}',
-  supplements = '{}',
-  supplements_other = null
+  diet_tags = '{}'
 where id = (select uid from _demo_seed);
 
 drop table _demo_seed;

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { getSupabase } from "../lib/supabaseClient";
-import { addMeal, addWeight } from "../lib/health";
+import { addMeal, addWeight, isSupplementName } from "../lib/health";
 import { addDemoMeal, upsertDemoWeight } from "../lib/demoSandbox";
 import { validateImageFile, compressImage } from "../lib/chatPhoto";
 import { VoiceRecorder, formatAudioTime, MAX_AUDIO_SECONDS } from "../lib/chatAudio";
@@ -117,7 +117,7 @@ const INITIAL_MSGS = [
   },
 ];
 
-export default function ChatWidget({ targets, userId, isDemo, diets, country, goal, supplements, supplementsOther, onSaved, mode = "side" }) {
+export default function ChatWidget({ targets, userId, isDemo, diets, country, goal, supplements, supplementsOther, creatineToday, creatineDays, proteinScoops, onSaved, mode = "side" }) {
   const [open, setOpen] = useState(false);
   const [msgs, setMsgs] = useState(INITIAL_MSGS);
   const [input, setInput] = useState("");
@@ -370,6 +370,11 @@ export default function ChatWidget({ targets, userId, isDemo, diets, country, go
             ];
             return list.length ? list : undefined;
           })(),
+          supplementsToday: {
+            creatine_g: creatineToday || null,
+            creatine_days_7: creatineDays || 0,
+            protein_scoops: proteinScoops || 0,
+          },
         }),
       });
       const out = await r.json();
@@ -440,7 +445,7 @@ export default function ChatWidget({ targets, userId, isDemo, diets, country, go
     try {
       // Demo: la comida queda en el sandbox de la pestaña, no en la DB.
       if (isDemo) addDemoMeal(est);
-      else await addMeal(userId, est);
+      else await addMeal(userId, { ...est, source: "chat" });
       setMsgs((all) =>
         all.map((m, i) => (i === idx ? { ...m, saved: true, saveError: "" } : m))
       );
@@ -640,6 +645,9 @@ export default function ChatWidget({ targets, userId, isDemo, diets, country, go
                 <div className="chat-est">
                   <div className="chat-est-title">
                     {m.estimate.meal} · {m.estimate.calories} kcal
+                    {isSupplementName(m.estimate.meal) && (
+                      <span className="meal-tag">Suplemento</span>
+                    )}
                   </div>
                   <div className="chat-est-macros">
                     P {m.estimate.protein}g · C {m.estimate.carbs}g · G{" "}

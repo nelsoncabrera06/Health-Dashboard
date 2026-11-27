@@ -7,7 +7,9 @@ import { useAuth } from "../../components/AuthContext";
 import AuthModal from "../../components/AuthModal";
 import {
   addMeal,
+  deleteCreatineToday,
   deleteMeal,
+  getCreatineWeek,
   getMealsSince,
   getProfile,
   getRecentMeals,
@@ -16,6 +18,9 @@ import {
   getTodayMeals,
   getTodayWorkouts,
   groupNutrientByDay,
+  isCreatineName,
+  isSupplementName,
+  setCreatineToday,
   sumMacros,
 } from "../../lib/health";
 import { MEAL_PLAN } from "../../lib/mealPlan";
@@ -47,6 +52,16 @@ function fmtEatenAt(iso) {
 }
 
 const EMPTY_FORM = { meal: "", calories: "", protein: "", carbs: "", fat: "" };
+
+// Card de suplementos: 1 scoop ≈ 30 g de polvo. Es un estimado genérico,
+// coherente con el ±30% del resto de la app; no representa una marca.
+const PROTEIN_SCOOP = {
+  meal: "Proteína en polvo (1 scoop)",
+  calories: 120,
+  protein: 24,
+  carbs: 2,
+  fat: 1.5,
+};
 
 // Las 4 tarjetas de macros son también el selector del gráfico grande: al
 // tocar una, el gráfico de abajo muestra esa serie (default: calorías).
@@ -227,6 +242,13 @@ export default function Dashboard() {
   // Confirmación de borrado de una comida (no se puede deshacer).
   const [confirmMeal, setConfirmMeal] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  // Card de suplementos: creatina (tabla propia, 0 kcal) y proteína en polvo
+  // (una comida con source='supplement', para que cuente en los totales).
+  const [creatineWeek, setCreatineWeek] = useState([]);
+  const [suppBusy, setSuppBusy] = useState("");
+  const [suppError, setSuppError] = useState("");
+  const [creatineOtherOpen, setCreatineOtherOpen] = useState(false);
+  const [creatineOther, setCreatineOther] = useState("");
   // Onboarding: se abre solo la primera vez (perfil sin `onboarded_at`) y
   // después desde "Editar" en la ventana "Mis datos".
   const [onboardingOpen, setOnboardingOpen] = useState(false);
@@ -258,15 +280,17 @@ export default function Dashboard() {
     setLoading(true);
     setLoadError("");
     try {
-      const [t, prof, today, rec, todayW, weekMeals, wts] = await Promise.all([
-        getTargets(user.id),
-        getProfile(user.id).catch(() => null),
-        getTodayMeals(user.id),
-        getRecentMeals(user.id, 8),
-        getTodayWorkouts(user.id).catch(() => []),
-        getMealsSince(user.id, 90).catch(() => []),
-        getRecentWeights(user.id, 365).catch(() => []),
-      ]);
+      const [t, prof, today, rec, todayW, weekMeals, wts, creatine] =
+        await Promise.all([
+          getTargets(user.id),
+          getProfile(user.id).catch(() => null),
+          getTodayMeals(user.id),
+          getRecentMeals(user.id, 8),
+          getTodayWorkouts(user.id).catch(() => []),
+          getMealsSince(user.id, 90).catch(() => []),
+          getRecentWeights(user.id, 365).catch(() => []),
+          getCreatineWeek(user.id).catch(() => []),
+        ]);
       setTargets(t);
       setProfile(prof);
       // Demo: lo que el visitante registra vive en sessionStorage. Se mergea
@@ -292,6 +316,7 @@ export default function Dashboard() {
         setWeights(wts);
       }
       setWorkouts(todayW);
+      setCreatineWeek(creatine);
     } catch (e) {
       setLoadError(e.message || "No se pudieron cargar los datos.");
     } finally {
@@ -397,6 +422,88 @@ export default function Dashboard() {
       setDeleting(false);
     }
   };
+
+  const saveCreatine = async (grams) => {
+    if (!user || isDemo) return;
+    const value = Number(String(grams).replace(",", "."));
+    if (!Number.isFinite(value) || value <= 0 || value > 30) {
+      setSuppError("Poné una cantidad entre 1 y 30 g.");
+      return;
+    }
+    setSuppError("");
+    setSuppBusy("creatine");
+    try {
+      await setCreatineToday(user.id, value);
+      setCreatineOtherOpen(false);
+      setCreatineOther("");
+      await load();
+    } catch (err) {
+      setSuppError(err.message || "No se pudo registrar la creatina.");
+    } finally {
+      setSuppBusy("");
+    }
+  };
+
+  const clearCreatine = async () => {
+    if (!user || isDemo) return;
+    setSuppError("");
+    setSuppBusy("creatine");
+    try {
+      await deleteCreatineToday(user.id);
+      await load();
+    } catch (err) {
+      setSuppError(err.message || "No se pudo borrar el registro.");
+    } finally {
+      setSuppBusy("");
+    }
+  };
+
+  // La proteína se registra como comida (source='supplement'): así cuenta en
+  // macros, barras, gráfico, resumen y API sin duplicar cálculos.
+  const addProteinScoop = async () => {
+    if (!user || isDemo) return;
+    setSuppError("");
+    setSuppBusy("protein");
+    try {
+      await addMeal(user.id, { ...PROTEIN_SCOOP, source: "supplement" });
+      await load();
+    } catch (err) {
+      setSuppError(err.message || "No se pudo registrar la proteína.");
+    } finally {
+      setSuppBusy("");
+    }
+  };
+
+  const undoProteinScoop = async () => {
+    if (!user || isDemo) return;
+    const last = supplementMeals[0];
+    if (!last) return;
+    setSuppError("");
+    setSuppBusy("protein");
+    try {
+      await deleteMeal(user.id, last.id);
+      await load();
+    } catch (err) {
+      setSuppError(err.message || "No se pudo deshacer el scoop.");
+    } finally {
+      setSuppBusy("");
+    }
+  };
+
+  const todayKey = new Date().toDateString();
+  const creatineTodayRows = creatineWeek.filter(
+    (r) => new Date(r.eaten_at).toDateString() === todayKey
+  );
+  const creatineToday = creatineTodayRows.length
+    ? creatineTodayRows.reduce((s, r) => s + (Number(r.grams) || 0), 0)
+    : null;
+  const creatineDays = new Set(
+    creatineWeek.map((r) => new Date(r.eaten_at).toDateString())
+  ).size;
+  const supplementMeals = todayMeals.filter(
+    (m) => m.source === "supplement" && !isCreatineName(m.meal)
+  );
+  const proteinScoops = supplementMeals.length;
 
   if (!ready) {
     return (
@@ -866,7 +973,13 @@ export default function Dashboard() {
             recent.map((m) => (
               <div className="meal-row" key={m.id}>
                 <div className="meal-time">{fmtEatenAt(m.eaten_at)}</div>
-                <div className="meal-name">{m.meal}</div>
+                <div className="meal-name">
+                  {m.meal}
+                  {(m.source === "supplement" ||
+                    isSupplementName(m.meal)) && (
+                    <span className="meal-tag">Suplemento</span>
+                  )}
+                </div>
                 <div className="meal-cal">{Math.round(m.calories)} kcal</div>
                 {(!isDemo || isLocalId(m.id)) && (
                   <button
@@ -881,46 +994,168 @@ export default function Dashboard() {
             ))}
         </div>
 
-        <div className="card">
-          <h2 className="card-title">Ejercicio de hoy</h2>
-          {loading && <p className="muted">Cargando…</p>}
-          {!loading && !workouts.length && (
-            <div className="empty-state">Sin entrenamientos hoy</div>
-          )}
-          {!loading &&
-            workouts.map((w) => (
-              <div className="meal-row" key={w.id}>
-                <div className="meal-name">
-                  {w.type}
-                  <div className="meal-meta">
-                    {w.duration_min} min
-                    {w.notes ? ` · ${w.notes}` : ""}
+        <div className="dash-col">
+          <div className="card">
+            <h2 className="card-title">Ejercicio de hoy</h2>
+            {loading && <p className="muted">Cargando…</p>}
+            {!loading && !workouts.length && (
+              <div className="empty-state">Sin entrenamientos hoy</div>
+            )}
+            {!loading &&
+              workouts.map((w) => (
+                <div className="meal-row" key={w.id}>
+                  <div className="meal-name">
+                    {w.type}
+                    <div className="meal-meta">
+                      {w.duration_min} min
+                      {w.notes ? ` · ${w.notes}` : ""}
+                    </div>
+                  </div>
+                  <div className="meal-cal">
+                    −{Math.round(w.calories_burned)} kcal
                   </div>
                 </div>
-                <div className="meal-cal">
-                  −{Math.round(w.calories_burned)} kcal
+              ))}
+            {!loading && !!workouts.length && targets && (
+              <div className="net-box">
+                <div>
+                  <div className="net-label">Balance neto del día</div>
+                  <div className="net-big">{Math.round(netCalories)} kcal</div>
+                </div>
+                <div className="net-breakdown">
+                  <span>
+                    <b>{Math.round(totals.calories)}</b> consumidas
+                  </span>
+                  <span>
+                    <b>{Math.round(burnedCalories)}</b> quemadas
+                  </span>
+                  <span>
+                    <b>{targets.calories}</b> objetivo
+                  </span>
                 </div>
               </div>
-            ))}
-          {!loading && !!workouts.length && targets && (
-            <div className="net-box">
+            )}
+          </div>
+
+          <div className="card supp-card">
+            <h2 className="card-title">Suplementos</h2>
+
+            <div className="supp-row">
               <div>
-                <div className="net-label">Balance neto del día</div>
-                <div className="net-big">{Math.round(netCalories)} kcal</div>
+                <div className="supp-name">Creatina</div>
+                <div className="supp-meta">
+                  {isDemo
+                    ? "—"
+                    : creatineToday
+                    ? `Hoy: ${creatineToday} g · ${creatineDays}/7 días`
+                    : creatineDays
+                    ? `Hoy: sin registrar · ${creatineDays}/7 días`
+                    : "Hoy: sin registrar"}
+                </div>
               </div>
-              <div className="net-breakdown">
-                <span>
-                  <b>{Math.round(totals.calories)}</b> consumidas
-                </span>
-                <span>
-                  <b>{Math.round(burnedCalories)}</b> quemadas
-                </span>
-                <span>
-                  <b>{targets.calories}</b> objetivo
-                </span>
+              <div className="supp-actions">
+                <button
+                  type="button"
+                  className="supp-btn"
+                  onClick={() => saveCreatine(5)}
+                  disabled={isDemo || suppBusy === "creatine"}
+                >
+                  5 g
+                </button>
+                <button
+                  type="button"
+                  className="supp-btn"
+                  onClick={() => saveCreatine(3)}
+                  disabled={isDemo || suppBusy === "creatine"}
+                >
+                  3 g
+                </button>
+                <button
+                  type="button"
+                  className="supp-btn"
+                  onClick={() => setCreatineOtherOpen((o) => !o)}
+                  disabled={isDemo || suppBusy === "creatine"}
+                >
+                  Otro
+                </button>
+                {!isDemo && creatineToday && (
+                  <button
+                    type="button"
+                    className="supp-btn danger"
+                    onClick={clearCreatine}
+                    disabled={suppBusy === "creatine"}
+                    title="Borrar el registro de hoy"
+                  >
+                    ×
+                  </button>
+                )}
               </div>
             </div>
-          )}
+            {creatineOtherOpen && !isDemo && (
+              <div className="supp-other">
+                <input
+                  inputMode="decimal"
+                  value={creatineOther}
+                  onChange={(e) => setCreatineOther(e.target.value)}
+                  placeholder="g"
+                  aria-label="Gramos de creatina"
+                />
+                <button
+                  type="button"
+                  className="supp-btn"
+                  onClick={() => saveCreatine(creatineOther)}
+                  disabled={suppBusy === "creatine"}
+                >
+                  Guardar
+                </button>
+              </div>
+            )}
+
+            <div className="supp-row">
+              <div>
+                <div className="supp-name">Proteína en polvo</div>
+                <div className="supp-meta">
+                  {isDemo
+                    ? "—"
+                    : proteinScoops
+                    ? `Hoy: ${proteinScoops} ${
+                        proteinScoops === 1 ? "scoop" : "scoops"
+                      } · ${proteinScoops * PROTEIN_SCOOP.calories} kcal · ${
+                        proteinScoops * PROTEIN_SCOOP.protein
+                      } g P`
+                    : "Hoy: sin registrar"}
+                </div>
+              </div>
+              <div className="supp-actions">
+                <button
+                  type="button"
+                  className="supp-btn"
+                  onClick={addProteinScoop}
+                  disabled={isDemo || suppBusy === "protein"}
+                >
+                  + 1 scoop
+                </button>
+                {!isDemo && proteinScoops > 0 && (
+                  <button
+                    type="button"
+                    className="supp-btn danger"
+                    onClick={undoProteinScoop}
+                    disabled={suppBusy === "protein"}
+                    title="Deshacer el último scoop"
+                  >
+                    −
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <p className="supp-note">
+              {isDemo
+                ? "En la demo no se registra: creá tu cuenta para trackear creatina y proteína."
+                : "La proteína suma a tus macros (1 scoop ≈ 30 g de polvo). La creatina pura no aporta calorías; si es saborizada, cargala como comida."}
+            </p>
+            {suppError && <p className="auth-error supp-error">{suppError}</p>}
+          </div>
         </div>
       </div>
 
@@ -934,6 +1169,9 @@ export default function Dashboard() {
         goal={profile?.goal_type}
         supplements={profile?.supplements}
         supplementsOther={profile?.supplements_other}
+        creatineToday={creatineToday}
+        creatineDays={creatineDays}
+        proteinScoops={proteinScoops}
         onSaved={load}
         mode={chatMode}
       />

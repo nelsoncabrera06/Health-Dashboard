@@ -24,3 +24,8 @@ comment on column profiles.supplements is
   'Suplementos habituales elegidos del catálogo (creatine, protein_powder).';
 comment on column profiles.supplements_other is
   'Suplementos fuera del catálogo, texto libre. Solo contexto para el chat.';
+
+-- La demo muestra la sección vacía a propósito: solo el placeholder, sin datos.
+update profiles
+set supplements = '{}', supplements_other = null
+where role = 'demo';

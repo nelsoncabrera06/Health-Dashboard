@@ -269,6 +269,18 @@ export async function POST(req) {
         .map((s) => s.trim().slice(0, 40))
         .slice(0, 10)
     : [];
+  // Registro de hoy de la card (fase 2). Se acota a valores sanos: el modelo no
+  // tiene por qué recibir un 999 g de creatina por un bug del cliente.
+  const st = body?.supplementsToday;
+  const creatineToday = Math.min(30, Math.max(0, Number(st?.creatine_g) || 0));
+  const creatineDays = Math.min(
+    7,
+    Math.max(0, Math.round(Number(st?.creatine_days_7) || 0))
+  );
+  const proteinScoops = Math.min(
+    20,
+    Math.max(0, Math.round(Number(st?.protein_scoops) || 0))
+  );
   const country =
     typeof body?.country === "string" && body.country.trim()
       ? body.country.trim().slice(0, 60)
@@ -302,6 +314,32 @@ export async function POST(req) {
         ", "
       )}. Son habituales: no asumas que los tomó hoy ni sumes sus calorías salvo que los mencione. No recomiendes empezar a tomarlos ni des dosis médicas; si pregunta, respondé información general y sugerí consultar a un profesional.`
     );
+  if (creatineToday || creatineDays || proteinScoops) {
+    const bits = [];
+    if (creatineToday)
+      bits.push(
+        `creatina ${creatineToday} g hoy (${creatineDays} de los últimos 7 días)`
+      );
+    else if (creatineDays)
+      bits.push(
+        `sin creatina registrada hoy (${creatineDays} de los últimos 7 días)`
+      );
+    if (proteinScoops)
+      bits.push(
+        `${proteinScoops} ${
+          proteinScoops === 1 ? "scoop" : "scoops"
+        } de proteína en polvo (~${
+          proteinScoops * 24
+        } g de proteína y ~${
+          proteinScoops * 120
+        } kcal, ya incluidas en las comidas del día)`
+      );
+    parts.push(
+      `Registro de suplementos de hoy: ${bits.join(
+        "; "
+      )}. La dosis habitual de creatina es 3–5 g/día. Podés comentar la adherencia y el aporte de la proteína, pero no recomiendes empezar suplementos ni des indicaciones médicas.`
+    );
+  }
   const sys = parts.join("\n");
 
   let text;

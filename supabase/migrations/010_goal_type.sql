@@ -42,3 +42,8 @@ where w.user_id = p.id
 update profiles
 set goal_type = 'maintenance'
 where goal_type is null and onboarded_at is not null;
+
+-- La demo es el ejemplo público: pérdida de grasa, coherente con su peso y meta.
+update profiles
+set goal_type = 'fat_loss'
+where role = 'demo' and goal_type is null;
