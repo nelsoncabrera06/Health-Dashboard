@@ -212,6 +212,12 @@ export default function AdminPage() {
   useEffect(() => {
     loadNotifications();
   }, [loadNotifications]);
+  // "Volver al panel" del modo Ver como llega a /admin?tab=users.
+  useEffect(() => {
+    const tabParam = new URLSearchParams(window.location.search).get("tab");
+    if (["ai", "users", "suggestions", "notif"].includes(tabParam))
+      setTab(tabParam);
+  }, []);
 
   const choose = async (entry) => {
     if (saving) return;
@@ -809,6 +815,27 @@ export default function AdminPage() {
                                 <span className="admin-own">Tu cuenta</span>
                               ) : (
                                 <>
+                                  <Link
+                                    className="admin-mini-btn admin-icon-btn"
+                                    href={`/dashboard?viewAs=${u.id}`}
+                                    title="Ver como"
+                                    aria-label="Ver como"
+                                  >
+                                    <svg
+                                      viewBox="0 0 24 24"
+                                      width="15"
+                                      height="15"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      strokeWidth="2"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      aria-hidden="true"
+                                    >
+                                      <path d="M1.5 12S5 5.5 12 5.5 22.5 12 22.5 12 19 18.5 12 18.5 1.5 12 1.5 12Z" />
+                                      <circle cx="12" cy="12" r="3" />
+                                    </svg>
+                                  </Link>
                                   <button
                                     type="button"
                                     className="admin-mini-btn"

@@ -111,6 +111,12 @@ body:has(.dash)::after {
   color: var(--muted); font-size: 13px; line-height: 1.5;
 }
 .demo-banner b { color: var(--blue); font-weight: 700; }
+.viewas-banner {
+  background: rgba(168, 85, 247, .09);
+  border-color: rgba(168, 85, 247, .38);
+}
+.viewas-banner b { color: #c084fc; }
+.viewas-banner a { color: #c084fc; font-weight: 600; }
 .card {
   background: var(--card);
   border: 1px solid var(--border);
@@ -1285,6 +1291,7 @@ body.chat-resizing { user-select: none; transition: none; }
   border-top: 1px solid var(--border); background: rgba(0, 0, 0, .15);
 }
 .profile-demo-note { font-size: 12px; color: var(--muted); }
+.profile-support-note { font-size: 11.5px; color: var(--muted); }
 .profile-danger {
   margin-top: 18px; padding: 14px; border-radius: 10px;
   background: rgba(239, 68, 68, .08);
@@ -1649,6 +1656,10 @@ body.chat-resizing { user-select: none; transition: none; }
   border: 1px solid rgba(59, 130, 246, .4);
 }
 .admin-mini-btn:hover { background: rgba(59, 130, 246, .22); }
+.admin-icon-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; padding: 0; text-decoration: none;
+}
 .admin-mini-btn.danger {
   background: transparent; color: var(--red);
   border-color: rgba(239, 68, 68, .45);

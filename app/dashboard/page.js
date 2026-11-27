@@ -1,10 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "../../components/AuthContext";
 import AuthModal from "../../components/AuthModal";
+import { getSupabase } from "../../lib/supabaseClient";
 import {
   addMeal,
   deleteCreatineToday,
@@ -214,8 +221,30 @@ function MacroCard({
   );
 }
 
-export default function Dashboard() {
+// `/dashboard?viewAs=<id>` usa `useSearchParams`, que en Next necesita un
+// Suspense boundary para el prerender. El fallback es el mismo "Cargando…".
+export default function DashboardPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="dash">
+          <p className="muted">Cargando…</p>
+        </main>
+      }
+    >
+      <Dashboard />
+    </Suspense>
+  );
+}
+
+function Dashboard() {
   const { user, ready, signOut } = useAuth();
+  // "Ver como" del admin: /dashboard?viewAs=<userId>. Es solo lectura; la API
+  // valida que quien mira sea admin y devuelve los datos del usuario.
+  const searchParams = useSearchParams();
+  const viewAsId = searchParams.get("viewAs") || null;
+  const [viewAsUser, setViewAsUser] = useState(null);
+  const isViewAs = Boolean(viewAsId);
   // La demo es una cuenta compartida: sus registros no van a Supabase, van al
   // sandbox del navegador (lib/demoSandbox.js). El seed de la DB es de lectura.
   const isDemo = user?.role === "demo";
@@ -275,11 +304,48 @@ export default function Dashboard() {
     }
   };
 
+  useEffect(() => {
+    if (!ready || !viewAsId) return;
+    if (user?.role !== "admin") {
+      setViewAsUser(null);
+      router.replace("/dashboard");
+    }
+  }, [ready, user, viewAsId, router]);
+
   const load = useCallback(async () => {
     if (!user) return;
+    // Mientras se resuelve si es admin, no consultes datos ajenos.
+    if (viewAsId && user.role !== "admin") return;
     setLoading(true);
     setLoadError("");
     try {
+      if (viewAsId) {
+        const {
+          data: { session },
+        } = await getSupabase().auth.getSession();
+        const token = session?.access_token;
+        if (!token) throw new Error("Sesión inválida. Volvé a iniciar sesión.");
+        const res = await fetch(`/api/admin/view-as/${viewAsId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok)
+          throw new Error(
+            body.error || "No se pudo abrir la vista de soporte."
+          );
+        setViewAsUser(body.user || null);
+        setProfile(body.profile || null);
+        setTargets(body.targets || null);
+        setTodayMeals(body.todayMeals || []);
+        setRecent(body.recentMeals || []);
+        setCalMeals(body.weekMeals || []);
+        setWorkouts(body.todayWorkouts || []);
+        setWeights(body.weights || []);
+        setCreatineWeek(body.creatineWeek || []);
+        return;
+      }
+
+      setViewAsUser(null);
       const [t, prof, today, rec, todayW, weekMeals, wts, creatine] =
         await Promise.all([
           getTargets(user.id),
@@ -322,7 +388,7 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, viewAsId]);
 
   useEffect(() => {
     load();
@@ -334,15 +400,20 @@ export default function Dashboard() {
     setOnboardingOpen(false);
   }, [user?.id]);
 
+  // En "Ver como" nunca se abre el wizard: es solo lectura.
+  useEffect(() => {
+    if (isViewAs) setOnboardingOpen(false);
+  }, [isViewAs]);
+
   // Primera vez: sin `onboarded_at`. "Saltar por ahora" no vuelve a abrirlo
   // hasta el próximo login (el ref se resetea al cambiar de usuario).
   useEffect(() => {
-    if (autoOnboarding.current || loading || !profile) return;
+    if (autoOnboarding.current || loading || !profile || isViewAs) return;
     if (!profile.onboarded_at) {
       autoOnboarding.current = true;
       setOnboardingOpen(true);
     }
-  }, [loading, profile]);
+  }, [loading, profile, isViewAs]);
 
   useEffect(() => {
     setWeekDays(groupNutrientByDay(calMeals, calWindow, metric));
@@ -372,6 +443,7 @@ export default function Dashboard() {
 
   const handleAdd = async (e) => {
     e.preventDefault();
+    if (isViewAs) return;
     setFormError("");
     if (!form.meal.trim()) {
       setFormError("Poné qué comiste.");
@@ -393,6 +465,7 @@ export default function Dashboard() {
   };
 
   const handleDelete = async (id) => {
+    if (isViewAs) return;
     try {
       if (isDemo) deleteDemoMeal(id);
       else await deleteMeal(user.id, id);
@@ -424,7 +497,7 @@ export default function Dashboard() {
   };
 
   const saveCreatine = async (grams) => {
-    if (!user || isDemo) return;
+    if (!user || isDemo || isViewAs) return;
     const value = Number(String(grams).replace(",", "."));
     if (!Number.isFinite(value) || value <= 0 || value > 30) {
       setSuppError("Poné una cantidad entre 1 y 30 g.");
@@ -445,7 +518,7 @@ export default function Dashboard() {
   };
 
   const clearCreatine = async () => {
-    if (!user || isDemo) return;
+    if (!user || isDemo || isViewAs) return;
     setSuppError("");
     setSuppBusy("creatine");
     try {
@@ -461,7 +534,7 @@ export default function Dashboard() {
   // La proteína se registra como comida (source='supplement'): así cuenta en
   // macros, barras, gráfico, resumen y API sin duplicar cálculos.
   const addProteinScoop = async () => {
-    if (!user || isDemo) return;
+    if (!user || isDemo || isViewAs) return;
     setSuppError("");
     setSuppBusy("protein");
     try {
@@ -475,7 +548,7 @@ export default function Dashboard() {
   };
 
   const undoProteinScoop = async () => {
-    if (!user || isDemo) return;
+    if (!user || isDemo || isViewAs) return;
     const last = supplementMeals[0];
     if (!last) return;
     setSuppError("");
@@ -577,6 +650,17 @@ export default function Dashboard() {
       ? Math.abs(Number(weights[0].weight_kg) - goalWeight).toFixed(1)
       : null;
 
+  const headerName = isViewAs
+    ? viewAsUser?.display_name ||
+      viewAsUser?.username ||
+      profile?.display_name ||
+      profile?.username ||
+      "usuario"
+    : user.displayName || user.username;
+  const headerTier = isViewAs
+    ? viewAsUser?.tier || profile?.tier || "free"
+    : user.tier;
+
   return (
     <main className="dash">
       <div className="header">
@@ -596,56 +680,67 @@ export default function Dashboard() {
           <div>
             <div className="title">Nutrition Dashboard</div>
             <div className="subtitle">
-              {user.displayName || user.username} · plan {user.tier}
+              {headerName} · plan {headerTier}
             </div>
           </div>
         </Link>
         <div className="header-right">
-          <div className="user-menu-wrap" ref={menuRef}>
+          {isViewAs ? (
             <button
+              type="button"
               className="btn btn-secondary"
-              onClick={() => setMenuOpen((o) => !o)}
+              onClick={() => setProfileOpen(true)}
+              title="Ver sus datos (solo lectura)"
             >
-              {profile?.display_name || user.displayName || user.username}
+              {headerName}
             </button>
-            {menuOpen && (
-              <div className="user-menu">
-                <button
-                  onClick={() => {
-                    setProfileOpen(true);
-                    setMenuOpen(false);
-                  }}
-                >
-                  Mis datos
-                </button>
-                <Link href="/api-keys">API keys</Link>
-                <Link href="/suggestions">Sugerencias</Link>
-                {user?.role === "admin" && <Link href="/admin">Admin</Link>}
-                <div className="user-menu-sep" />
-                <div className="menu-label">Chat</div>
-                <div className="seg" role="group" aria-label="Cómo se muestra el chat">
+          ) : (
+            <div className="user-menu-wrap" ref={menuRef}>
+              <button
+                className="btn btn-secondary"
+                onClick={() => setMenuOpen((o) => !o)}
+              >
+                {profile?.display_name || user.displayName || user.username}
+              </button>
+              {menuOpen && (
+                <div className="user-menu">
                   <button
-                    className={chatMode === "side" ? "active" : ""}
-                    onClick={() => changeChatMode("side")}
-                    title="El chat abre de costado y achica el dashboard"
+                    onClick={() => {
+                      setProfileOpen(true);
+                      setMenuOpen(false);
+                    }}
                   >
-                    ↔ De costado
+                    Mis datos
                   </button>
-                  <button
-                    className={chatMode === "overlay" ? "active" : ""}
-                    onClick={() => changeChatMode("overlay")}
-                    title="El chat abre encima del dashboard"
-                  >
-                    ▣ Encima
+                  <Link href="/api-keys">API keys</Link>
+                  <Link href="/suggestions">Sugerencias</Link>
+                  {user?.role === "admin" && <Link href="/admin">Admin</Link>}
+                  <div className="user-menu-sep" />
+                  <div className="menu-label">Chat</div>
+                  <div className="seg" role="group" aria-label="Cómo se muestra el chat">
+                    <button
+                      className={chatMode === "side" ? "active" : ""}
+                      onClick={() => changeChatMode("side")}
+                      title="El chat abre de costado y achica el dashboard"
+                    >
+                      ↔ De costado
+                    </button>
+                    <button
+                      className={chatMode === "overlay" ? "active" : ""}
+                      onClick={() => changeChatMode("overlay")}
+                      title="El chat abre encima del dashboard"
+                    >
+                      ▣ Encima
+                    </button>
+                  </div>
+                  <div className="user-menu-sep" />
+                  <button className="danger" onClick={handleSignOut}>
+                    Cerrar sesión
                   </button>
                 </div>
-                <div className="user-menu-sep" />
-                <button className="danger" onClick={handleSignOut}>
-                  Cerrar sesión
-                </button>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -655,22 +750,33 @@ export default function Dashboard() {
         </div>
       )}
 
+      {isViewAs && (
+        <div className="demo-banner viewas-banner">
+          <b>Admin viendo como {headerName}.</b>{" "}
+          {viewAsUser?.email ? `${viewAsUser.email}. ` : ""}
+          Modo solo lectura: no se registra nada.{" "}
+          <Link href="/admin?tab=users">Volver al panel</Link>
+        </div>
+      )}
+
       {loadError && (
         <div className="card">
           <p className="auth-error">{loadError}</p>
         </div>
       )}
 
-      <div style={{ marginBottom: 16 }}>
-        <button
-          className="btn btn-secondary"
-          onClick={() => setFormOpen((o) => !o)}
-        >
-          {formOpen ? "Cerrar registro" : "+ Registrar comida"}
-        </button>
-      </div>
+      {!isViewAs && (
+        <div style={{ marginBottom: 16 }}>
+          <button
+            className="btn btn-secondary"
+            onClick={() => setFormOpen((o) => !o)}
+          >
+            {formOpen ? "Cerrar registro" : "+ Registrar comida"}
+          </button>
+        </div>
+      )}
 
-      {formOpen && (
+      {formOpen && !isViewAs && (
         <div className="card" style={{ marginBottom: 20 }}>
           <div className="section-title">Registrar comida</div>
           <form className="meal-form" onSubmit={handleAdd}>
@@ -981,7 +1087,7 @@ export default function Dashboard() {
                   )}
                 </div>
                 <div className="meal-cal">{Math.round(m.calories)} kcal</div>
-                {(!isDemo || isLocalId(m.id)) && (
+                {!isViewAs && (!isDemo || isLocalId(m.id)) && (
                   <button
                     className="meal-del"
                     onClick={() => setConfirmMeal(m)}
@@ -1058,7 +1164,7 @@ export default function Dashboard() {
                   type="button"
                   className="supp-btn"
                   onClick={() => saveCreatine(5)}
-                  disabled={isDemo || suppBusy === "creatine"}
+                  disabled={isDemo || isViewAs || suppBusy === "creatine"}
                 >
                   5 g
                 </button>
@@ -1066,7 +1172,7 @@ export default function Dashboard() {
                   type="button"
                   className="supp-btn"
                   onClick={() => saveCreatine(3)}
-                  disabled={isDemo || suppBusy === "creatine"}
+                  disabled={isDemo || isViewAs || suppBusy === "creatine"}
                 >
                   3 g
                 </button>
@@ -1074,11 +1180,11 @@ export default function Dashboard() {
                   type="button"
                   className="supp-btn"
                   onClick={() => setCreatineOtherOpen((o) => !o)}
-                  disabled={isDemo || suppBusy === "creatine"}
+                  disabled={isDemo || isViewAs || suppBusy === "creatine"}
                 >
                   Otro
                 </button>
-                {!isDemo && creatineToday && (
+                {!isDemo && !isViewAs && creatineToday && (
                   <button
                     type="button"
                     className="supp-btn danger"
@@ -1091,7 +1197,7 @@ export default function Dashboard() {
                 )}
               </div>
             </div>
-            {creatineOtherOpen && !isDemo && (
+            {creatineOtherOpen && !isDemo && !isViewAs && (
               <div className="supp-other">
                 <input
                   inputMode="decimal"
@@ -1131,11 +1237,11 @@ export default function Dashboard() {
                   type="button"
                   className="supp-btn"
                   onClick={addProteinScoop}
-                  disabled={isDemo || suppBusy === "protein"}
+                  disabled={isDemo || isViewAs || suppBusy === "protein"}
                 >
                   + 1 scoop
                 </button>
-                {!isDemo && proteinScoops > 0 && (
+                {!isDemo && !isViewAs && proteinScoops > 0 && (
                   <button
                     type="button"
                     className="supp-btn danger"
@@ -1150,7 +1256,9 @@ export default function Dashboard() {
             </div>
 
             <p className="supp-note">
-              {isDemo
+              {isViewAs
+                ? "Vista de soporte: solo lectura."
+                : isDemo
                 ? "En la demo no se registra: creá tu cuenta para trackear creatina y proteína."
                 : "La proteína suma a tus macros (1 scoop ≈ 30 g de polvo). La creatina pura no aporta calorías; si es saborizada, cargala como comida."}
             </p>
@@ -1160,23 +1268,25 @@ export default function Dashboard() {
       </div>
 
       <MealPlan />
-      <ChatWidget
-        targets={targets}
-        userId={user?.id}
-        isDemo={isDemo}
-        diets={profile?.diet_tags}
-        country={profile?.country}
-        goal={profile?.goal_type}
-        supplements={profile?.supplements}
-        supplementsOther={profile?.supplements_other}
-        creatineToday={creatineToday}
-        creatineDays={creatineDays}
-        proteinScoops={proteinScoops}
-        onSaved={load}
-        mode={chatMode}
-      />
+      {!isViewAs && (
+        <ChatWidget
+          targets={targets}
+          userId={user?.id}
+          isDemo={isDemo}
+          diets={profile?.diet_tags}
+          country={profile?.country}
+          goal={profile?.goal_type}
+          supplements={profile?.supplements}
+          supplementsOther={profile?.supplements_other}
+          creatineToday={creatineToday}
+          creatineDays={creatineDays}
+          proteinScoops={proteinScoops}
+          onSaved={load}
+          mode={chatMode}
+        />
+      )}
       <Onboarding
-        open={onboardingOpen}
+        open={onboardingOpen && !isViewAs}
         profile={profile}
         currentWeight={weights[0]?.weight_kg}
         onClose={() => setOnboardingOpen(false)}
@@ -1187,6 +1297,7 @@ export default function Dashboard() {
         profile={profile}
         currentWeight={weights[0]?.weight_kg}
         userId={user?.id}
+        readOnly={isViewAs}
         onClose={() => setProfileOpen(false)}
         onEdit={() => {
           setProfileOpen(false);

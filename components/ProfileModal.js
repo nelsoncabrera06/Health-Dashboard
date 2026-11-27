@@ -56,6 +56,7 @@ export default function ProfileModal({
   profile,
   currentWeight,
   userId,
+  readOnly = false,
   onClose,
   onEdit,
 }) {
@@ -317,32 +318,40 @@ export default function ProfileModal({
         </div>
 
         <div className="profile-foot">
-          {!isDemo && (
-            <button
-              type="button"
-              className="profile-delete-link"
-              onClick={() => {
-                setError("");
-                setConfirming(true);
-              }}
-              disabled={!profile || confirming}
-            >
-              Eliminar usuario
-            </button>
-          )}
-          {isDemo ? (
-            <span className="profile-demo-note">
-              En la demo el perfil es de ejemplo y no se edita.
+          {readOnly ? (
+            <span className="profile-support-note">
+              Vista de soporte: solo lectura.
             </span>
           ) : (
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={onEdit}
-              disabled={!profile}
-            >
-              Editar
-            </button>
+            <>
+              {!isDemo && (
+                <button
+                  type="button"
+                  className="profile-delete-link"
+                  onClick={() => {
+                    setError("");
+                    setConfirming(true);
+                  }}
+                  disabled={!profile || confirming}
+                >
+                  Eliminar usuario
+                </button>
+              )}
+              {isDemo ? (
+                <span className="profile-demo-note">
+                  En la demo el perfil es de ejemplo y no se edita.
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={onEdit}
+                  disabled={!profile}
+                >
+                  Editar
+                </button>
+              )}
+            </>
           )}
         </div>
       </div>
