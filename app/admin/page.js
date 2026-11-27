@@ -2,10 +2,11 @@
 
 // /admin — panel de administración.
 //
-// Hoy tiene tres tabs:
-//   1. "AI & API keys" → modelo global del chat (el contenido original).
-//   2. "Usuarios"      → listado de cuentas, edición de rol/tier/estado y borrado.
-//   3. "Sugerencias"   → feedback libre de /suggestions, con "leído" por mensaje.
+// Hoy tiene cuatro tabs:
+//   1. "AI & API keys"  → modelo global del chat (el contenido original).
+//   2. "Usuarios"       → listado de cuentas, edición de rol/tier/estado y borrado.
+//   3. "Sugerencias"    → feedback libre de /suggestions, con "leído" por mensaje.
+//   4. "Notificaciones" → switch del resumen diario de usuarios nuevos por email.
 //
 // Solo `role = 'admin'`. El link del menú se oculta a los demás, pero la
 // seguridad real está en la API (lib/api/admin.js): sesión de la web, rol admin
@@ -80,6 +81,12 @@ export default function AdminPage() {
   const [sugError, setSugError] = useState("");
   const [sugCounts, setSugCounts] = useState({ total: 0, unread: 0 });
   const [sugBusy, setSugBusy] = useState("");
+
+  // Tab Notificaciones
+  const [notif, setNotif] = useState(null);
+  const [notifLoading, setNotifLoading] = useState(true);
+  const [notifError, setNotifError] = useState("");
+  const [notifBusy, setNotifBusy] = useState("");
 
   // Aviso efímero, mismo patrón que /api-keys.
   const [toast, setToast] = useState("");
@@ -164,6 +171,31 @@ export default function AdminPage() {
     }
   }, [user, token]);
 
+  const loadNotifications = useCallback(async () => {
+    if (!user) return;
+    setNotifLoading(true);
+    setNotifError("");
+    try {
+      const t = await token();
+      if (!t) throw new Error("Sesión inválida. Volvé a iniciar sesión.");
+      const res = await fetch("/api/admin/notifications", {
+        headers: { Authorization: `Bearer ${t}` },
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok)
+        throw new Error(
+          apiMessage(body, "No se pudo cargar la configuración de notificaciones.")
+        );
+      setNotif(body);
+    } catch (err) {
+      setNotifError(
+        err.message || "No se pudo cargar la configuración de notificaciones."
+      );
+    } finally {
+      setNotifLoading(false);
+    }
+  }, [user, token]);
+
   useEffect(() => {
     if (ready && !user) router.replace("/");
   }, [ready, user, router]);
@@ -177,6 +209,9 @@ export default function AdminPage() {
   useEffect(() => {
     loadSuggestions();
   }, [loadSuggestions]);
+  useEffect(() => {
+    loadNotifications();
+  }, [loadNotifications]);
 
   const choose = async (entry) => {
     if (saving) return;
@@ -337,6 +372,60 @@ export default function AdminPage() {
     }
   };
 
+  const toggleNotifications = async () => {
+    if (!notif || notifBusy) return;
+    const enabled = !notif.enabled;
+    setNotifBusy("toggle");
+    setNotifError("");
+    try {
+      const t = await token();
+      const res = await fetch("/api/admin/notifications", {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${t}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ enabled }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok)
+        throw new Error(apiMessage(body, "No se pudo cambiar la preferencia."));
+      setNotif(body);
+      showToast(
+        enabled
+          ? "Notificaciones activadas. El próximo resumen sale a las 10:00."
+          : "Notificaciones desactivadas. No se mandan más resúmenes."
+      );
+    } catch (err) {
+      setNotifError(err.message || "No se pudo cambiar la preferencia.");
+    } finally {
+      setNotifBusy("");
+    }
+  };
+
+  const sendDigestNow = async () => {
+    if (notifBusy) return;
+    setNotifBusy("send");
+    setNotifError("");
+    try {
+      const t = await token();
+      const res = await fetch("/api/admin/notifications", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${t}` },
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok)
+        throw new Error(apiMessage(body, "No se pudo enviar el resumen."));
+      if (body.sent) showToast(`Resumen enviado (${body.count} usuario${body.count === 1 ? "" : "s"}).`);
+      else showToast("No hay usuarios nuevos para avisar.");
+      loadNotifications();
+    } catch (err) {
+      setNotifError(err.message || "No se pudo enviar el resumen.");
+    } finally {
+      setNotifBusy("");
+    }
+  };
+
   if (!ready || (loading && !data)) {
     return (
       <div className="conn">
@@ -429,6 +518,21 @@ export default function AdminPage() {
                 <span className="admin-tab-count-sep">:</span>
                 <span className="admin-tab-count-plain">
                   {sugLoading ? "—" : sugCounts.total}
+                </span>
+              </span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === "notif"}
+              className={`admin-tab${tab === "notif" ? " active" : ""}`}
+              onClick={() => setTab("notif")}
+            >
+              Notificaciones
+              <span className="admin-tab-count-group">
+                <span className="admin-tab-count-sep">:</span>
+                <span className="admin-tab-count-plain">
+                  {notifLoading ? "—" : notif?.pending ?? 0}
                 </span>
               </span>
             </button>
@@ -734,7 +838,7 @@ export default function AdminPage() {
                 </table>
               </div>
             </section>
-          ) : (
+          ) : tab === "suggestions" ? (
             <section
               className="admin-panel"
               role="tabpanel"
@@ -818,6 +922,123 @@ export default function AdminPage() {
                   </tbody>
                 </table>
               </div>
+            </section>
+          ) : (
+            <section
+              className="admin-panel"
+              role="tabpanel"
+              aria-label="Notificaciones"
+            >
+              <div className="admin-users-head">
+                <div>
+                  <h2 className="conn-h2">Notificaciones</h2>
+                  <p className="conn-sub">
+                    Resumen diario de usuarios nuevos por email.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={loadNotifications}
+                  disabled={notifLoading}
+                >
+                  {notifLoading ? "Actualizando…" : "Actualizar"}
+                </button>
+              </div>
+
+              {notifError && (
+                <p className="auth-error conn-error">{notifError}</p>
+              )}
+
+              {!notif ? (
+                <p className="conn-sub">Cargando…</p>
+              ) : (
+                <div className="notif-card">
+                  <div className="notif-row">
+                    <div>
+                      <div className="notif-title">
+                        Avisarme cuando se registre alguien
+                      </div>
+                      <div className="notif-sub">
+                        Un mail por día a las 10:00 (ART), solo si hay usuarios
+                        nuevos. Si no hay, no se manda nada.
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={notif.enabled}
+                      aria-label="Activar o desactivar las notificaciones"
+                      className={`notif-switch${notif.enabled ? " on" : ""}`}
+                      onClick={toggleNotifications}
+                      disabled={notifBusy === "toggle"}
+                    >
+                      <span className="notif-knob" />
+                    </button>
+                  </div>
+
+                  <div className="notif-stats">
+                    <div className="notif-stat">
+                      <span>Pendientes</span>
+                      <b>{notif.pending}</b>
+                    </div>
+                    <div className="notif-stat">
+                      <span>Último envío</span>
+                      <b>
+                        {notif.lastNotifiedAt
+                          ? fmtDate(notif.lastNotifiedAt)
+                          : "—"}
+                      </b>
+                    </div>
+                    <div className="notif-stat">
+                      <span>Email</span>
+                      <b className={notif.emailConfigured ? "ok" : "off"}>
+                        {notif.emailConfigured
+                          ? "Configurado"
+                          : "Falta API key"}
+                      </b>
+                    </div>
+                    <div className="notif-stat">
+                      <span>Frecuencia</span>
+                      <b>10:00 ART</b>
+                    </div>
+                  </div>
+
+                  <div className="notif-actions">
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={sendDigestNow}
+                      disabled={notifBusy === "send" || !notif.emailConfigured}
+                      title={
+                        notif.emailConfigured
+                          ? "Enviar el resumen ahora"
+                          : "Configurá RESEND_API_KEY y NOTIFY_EMAIL_TO"
+                      }
+                    >
+                      {notifBusy === "send"
+                        ? "Enviando…"
+                        : "Enviar resumen ahora"}
+                    </button>
+                    {!notif.emailConfigured && (
+                      <p className="admin-warn">
+                        Falta{" "}
+                        <code className="admin-inline-code">RESEND_API_KEY</code>{" "}
+                        o{" "}
+                        <code className="admin-inline-code">NOTIFY_EMAIL_TO</code>{" "}
+                        en el servidor.
+                      </p>
+                    )}
+                  </div>
+
+                  {notif.enabled === false && (
+                    <p className="notif-off-note">
+                      Está apagado: los usuarios nuevos quedan pendientes y
+                      entran en el próximo resumen cuando lo vuelvas a prender.
+                    </p>
+                  )}
+                </div>
+              )}
             </section>
           )}
         </>

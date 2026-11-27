@@ -45,6 +45,7 @@ a { color: var(--blue); }
   text-decoration: none;
   display: inline-block;
 }
+.btn:disabled { opacity: .55; cursor: default; }
 .btn-secondary {
   background: transparent;
   border: 1px solid var(--border);
@@ -1654,6 +1655,57 @@ body.chat-resizing { user-select: none; transition: none; }
 }
 .admin-mini-btn.danger:hover { background: rgba(239, 68, 68, .12); }
 .admin-own { font-size: 11px; color: var(--muted); }
+
+/* Tab Notificaciones */
+.notif-card {
+  border: 1px solid var(--border); border-radius: 12px;
+  padding: 18px; background: var(--bg);
+}
+.notif-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 18px; flex-wrap: wrap;
+}
+.notif-title { font-size: 14px; font-weight: 600; }
+.notif-sub {
+  font-size: 12px; color: var(--muted); line-height: 1.5;
+  margin-top: 3px; max-width: 520px;
+}
+.notif-switch {
+  width: 46px; height: 26px; border-radius: 999px; padding: 2px;
+  background: var(--card2); border: 1px solid var(--border);
+  cursor: pointer; flex: 0 0 auto;
+}
+.notif-switch.on { background: var(--teal); border-color: var(--teal); }
+.notif-switch:disabled { opacity: .6; cursor: default; }
+.notif-switch:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.notif-knob {
+  display: block; width: 20px; height: 20px; border-radius: 50%;
+  background: #fff; transition: transform .18s ease;
+}
+.notif-switch.on .notif-knob { transform: translateX(20px); }
+.notif-stats {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px; margin-top: 18px; padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.notif-stat { display: flex; flex-direction: column; gap: 3px; }
+.notif-stat span {
+  font-size: 10px; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--muted);
+}
+.notif-stat b { font-size: 14px; font-variant-numeric: tabular-nums; }
+.notif-stat b.ok { color: var(--green); }
+.notif-stat b.off { color: var(--yellow); }
+.notif-actions {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  margin-top: 18px;
+}
+.notif-off-note {
+  margin-top: 12px; font-size: 11.5px; color: var(--muted); line-height: 1.5;
+}
+@media (max-width: 640px) {
+  .notif-stats { grid-template-columns: 1fr 1fr; }
+}
 
 /* Modal de edición / borrado */
 .admin-modal { width: min(460px, 100%); }
