@@ -2,9 +2,10 @@
 
 // /admin — panel de administración.
 //
-// Hoy tiene dos tabs:
+// Hoy tiene tres tabs:
 //   1. "AI & API keys" → modelo global del chat (el contenido original).
 //   2. "Usuarios"      → listado de cuentas, edición de rol/tier/estado y borrado.
+//   3. "Sugerencias"   → feedback libre de /suggestions, con "leído" por mensaje.
 //
 // Solo `role = 'admin'`. El link del menú se oculta a los demás, pero la
 // seguridad real está en la API (lib/api/admin.js): sesión de la web, rol admin
@@ -73,6 +74,13 @@ export default function AdminPage() {
   const [deleting, setDeleting] = useState(null); // usuario a confirmar
   const [deleteError, setDeleteError] = useState("");
 
+  // Tab Sugerencias
+  const [suggestions, setSuggestions] = useState([]);
+  const [sugLoading, setSugLoading] = useState(true);
+  const [sugError, setSugError] = useState("");
+  const [sugCounts, setSugCounts] = useState({ total: 0, unread: 0 });
+  const [sugBusy, setSugBusy] = useState("");
+
   // Aviso efímero, mismo patrón que /api-keys.
   const [toast, setToast] = useState("");
   const toastTimer = useRef(null);
@@ -134,6 +142,28 @@ export default function AdminPage() {
     }
   }, [user, token]);
 
+  const loadSuggestions = useCallback(async () => {
+    if (!user) return;
+    setSugLoading(true);
+    setSugError("");
+    try {
+      const t = await token();
+      if (!t) throw new Error("Sesión inválida. Volvé a iniciar sesión.");
+      const res = await fetch("/api/admin/suggestions", {
+        headers: { Authorization: `Bearer ${t}` },
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok)
+        throw new Error(apiMessage(body, "No se pudieron cargar las sugerencias."));
+      setSuggestions(body.suggestions || []);
+      setSugCounts(body.counts || { total: 0, unread: 0 });
+    } catch (err) {
+      setSugError(err.message || "No se pudieron cargar las sugerencias.");
+    } finally {
+      setSugLoading(false);
+    }
+  }, [user, token]);
+
   useEffect(() => {
     if (ready && !user) router.replace("/");
   }, [ready, user, router]);
@@ -144,6 +174,9 @@ export default function AdminPage() {
   useEffect(() => {
     loadUsers();
   }, [loadUsers]);
+  useEffect(() => {
+    loadSuggestions();
+  }, [loadSuggestions]);
 
   const choose = async (entry) => {
     if (saving) return;
@@ -272,6 +305,38 @@ export default function AdminPage() {
     }
   };
 
+  const markSuggestion = async (s) => {
+    if (sugBusy) return;
+    const next = s.status === "read" ? "new" : "read";
+    setSugBusy(s.id);
+    setSugError("");
+    try {
+      const t = await token();
+      const res = await fetch("/api/admin/suggestions", {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${t}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ id: s.id, status: next }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok)
+        throw new Error(apiMessage(body, "No se pudo actualizar la sugerencia."));
+      setSuggestions((prev) =>
+        prev.map((item) => (item.id === s.id ? body.suggestion : item))
+      );
+      setSugCounts((prev) => ({
+        ...prev,
+        unread: Math.max(0, prev.unread + (next === "read" ? -1 : 1)),
+      }));
+    } catch (err) {
+      setSugError(err.message || "No se pudo actualizar la sugerencia.");
+    } finally {
+      setSugBusy("");
+    }
+  };
+
   if (!ready || (loading && !data)) {
     return (
       <div className="conn">
@@ -349,6 +414,21 @@ export default function AdminPage() {
                 <span className="admin-tab-count-sep">:</span>
                 <span className="admin-tab-count-plain">
                   {usersLoading ? "—" : users.length}
+                </span>
+              </span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === "suggestions"}
+              className={`admin-tab${tab === "suggestions" ? " active" : ""}`}
+              onClick={() => setTab("suggestions")}
+            >
+              Sugerencias
+              <span className="admin-tab-count-group">
+                <span className="admin-tab-count-sep">:</span>
+                <span className="admin-tab-count-plain">
+                  {sugLoading ? "—" : sugCounts.total}
                 </span>
               </span>
             </button>
@@ -547,7 +627,7 @@ export default function AdminPage() {
                 </div>
               )}
             </section>
-          ) : (
+          ) : tab === "users" ? (
             <section className="admin-panel" role="tabpanel" aria-label="Usuarios">
               <div className="admin-users-head">
                 <div>
@@ -649,6 +729,91 @@ export default function AdminPage() {
                           </tr>
                         );
                       })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          ) : (
+            <section
+              className="admin-panel"
+              role="tabpanel"
+              aria-label="Sugerencias"
+            >
+              <div className="admin-users-head">
+                <div>
+                  <h2 className="conn-h2">Sugerencias</h2>
+                  <p className="conn-sub">
+                    {sugLoading
+                      ? "Cargando…"
+                      : `${sugCounts.total} en total · ${sugCounts.unread} sin leer`}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={loadSuggestions}
+                  disabled={sugLoading}
+                >
+                  {sugLoading ? "Actualizando…" : "Actualizar"}
+                </button>
+              </div>
+
+              {sugError && <p className="auth-error conn-error">{sugError}</p>}
+
+              <div className="admin-table-wrap">
+                <table className="admin-users-table admin-sug-table">
+                  <thead>
+                    <tr>
+                      <th>Fecha</th>
+                      <th>Email</th>
+                      <th>Mensaje</th>
+                      <th>Estado</th>
+                      <th>Acción</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sugLoading && suggestions.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="admin-table-empty">
+                          Cargando sugerencias…
+                        </td>
+                      </tr>
+                    ) : suggestions.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="admin-table-empty">
+                          Todavía no hay sugerencias.
+                        </td>
+                      </tr>
+                    ) : (
+                      suggestions.map((s) => (
+                        <tr key={s.id}>
+                          <td className="admin-user-date">
+                            {fmtDate(s.created_at)}
+                          </td>
+                          <td className="admin-user-email">
+                            {s.email || "—"}
+                          </td>
+                          <td className="admin-sug-message">{s.message}</td>
+                          <td>
+                            <span className={`admin-status ${s.status}`}>
+                              {s.status === "read" ? "Leído" : "Nuevo"}
+                            </span>
+                          </td>
+                          <td>
+                            <button
+                              type="button"
+                              className="admin-mini-btn"
+                              onClick={() => markSuggestion(s)}
+                              disabled={sugBusy === s.id}
+                            >
+                              {s.status === "read"
+                                ? "Marcar nueva"
+                                : "Marcar leída"}
+                            </button>
+                          </td>
+                        </tr>
+                      ))
                     )}
                   </tbody>
                 </table>

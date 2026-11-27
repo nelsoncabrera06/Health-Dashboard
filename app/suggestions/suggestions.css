@@ -1,0 +1,107 @@
+/* ═══════════════════════════════════════════════════════════
+   /suggestions — formulario de feedback.
+   Las clases de layout (.conn, .card, .conn-section, header) las
+   hereda de app/globals.css; acá solo lo propio del formulario.
+   ═══════════════════════════════════════════════════════════ */
+
+.sug-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.sug-textarea {
+  width: 100%;
+  min-height: 132px;
+  resize: vertical;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.sug-textarea::placeholder { color: var(--muted); }
+.sug-textarea:focus { outline: none; border-color: var(--blue); }
+
+.sug-form-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.sug-count {
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.sug-count.near { color: var(--yellow); }
+
+.sug-ok {
+  font-size: 13px;
+  color: var(--green);
+}
+
+.sug-empty {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 12px;
+}
+
+.sug-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.sug-item {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+.sug-item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.sug-date {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.sug-text {
+  font-size: 13px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.sug-status {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+.sug-status.new {
+  color: var(--yellow);
+  border-color: rgba(234, 179, 8, .45);
+}
