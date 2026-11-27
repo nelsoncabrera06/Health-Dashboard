@@ -512,6 +512,7 @@ export default function Dashboard() {
                   Mis datos
                 </button>
                 <Link href="/api-keys">API keys</Link>
+                <Link href="/suggestions">Sugerencias</Link>
                 {user?.role === "admin" && <Link href="/admin">Admin</Link>}
                 <div className="user-menu-sep" />
                 <div className="menu-label">Chat</div>
@@ -930,6 +931,7 @@ export default function Dashboard() {
         isDemo={isDemo}
         diets={profile?.diet_tags}
         country={profile?.country}
+        goal={profile?.goal_type}
         onSaved={load}
         mode={chatMode}
       />

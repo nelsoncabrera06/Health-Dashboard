@@ -9,6 +9,7 @@ import {
   activityLabel,
   countryLabel,
   dietLabel,
+  goalLabel,
   sexLabel,
 } from "../lib/profile";
 
@@ -115,6 +116,7 @@ export default function ProfileModal({
     Boolean(sexLabel(profile?.sex)) ||
     Boolean(profile?.country);
   const hasGoals =
+    Boolean(goalLabel(profile?.goal_type)) ||
     Boolean(goal) ||
     Boolean(profile?.tdee) ||
     Boolean(profile?.calories_target) ||
@@ -173,6 +175,13 @@ export default function ProfileModal({
 
                 {hasGoals && (
                   <Group title="Objetivos">
+                    {goalLabel(profile.goal_type) && (
+                      <Row
+                        label="Objetivo"
+                        value={goalLabel(profile.goal_type)}
+                        color="var(--teal)"
+                      />
+                    )}
                     {goal && (
                       <Row
                         label="Peso objetivo"

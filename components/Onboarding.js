@@ -4,11 +4,13 @@ import { useEffect, useState } from "react";
 import { useAuth } from "./AuthContext";
 import {
   ACTIVITY_LEVELS,
+  BODY_GOALS,
   COUNTRIES,
   DIET_TAGS,
   SEXES,
   computeTargets,
   emptyForm,
+  goalLabel,
   parseForm,
   profileToForm,
   saveOnboarding,
@@ -72,6 +74,15 @@ export default function Onboarding({
     Number.isFinite(parsed.weight_kg) && Number.isFinite(parsed.goal_weight_kg)
       ? parsed.weight_kg - parsed.goal_weight_kg
       : 0;
+  const goalSpec = BODY_GOALS.find((g) => g.value === form.goalType);
+  const hasWeights =
+    Number.isFinite(parsed.weight_kg) && Number.isFinite(parsed.goal_weight_kg);
+  const goalMismatch =
+    hasWeights &&
+    ((form.goalType === "fat_loss" &&
+      parsed.goal_weight_kg >= parsed.weight_kg - 0.1) ||
+      (form.goalType === "muscle_gain" &&
+        parsed.goal_weight_kg <= parsed.weight_kg + 0.1));
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const toggleDiet = (value) =>
@@ -95,6 +106,7 @@ export default function Onboarding({
         return "El peso tiene que estar entre 30 y 300 kg.";
     }
     if (s === 1) {
+      if (!form.goalType) return "Elegí tu objetivo.";
       if (!parsed.activity) return "Elegí tu nivel de actividad.";
       if (!inRange(parsed.goal_weight_kg, 30, 300))
         return "El peso objetivo tiene que estar entre 30 y 300 kg.";
@@ -237,7 +249,7 @@ export default function Onboarding({
                   value={form.country}
                   onChange={(e) => set("country", e.target.value)}
                 >
-                  <option value="">Elegí tu país</option>
+                  <option value="">Sin país</option>
                   {COUNTRIES.map((c) => (
                     <option key={c.code} value={c.code}>
                       {c.name}
@@ -254,9 +266,33 @@ export default function Onboarding({
 
           {step === 1 && (
             <>
+              <div className="onb-label">Tu objetivo</div>
+              <div className="onb-goals">
+                {BODY_GOALS.map((g) => (
+                  <button
+                    key={g.value}
+                    type="button"
+                    className={`onb-goal${
+                      form.goalType === g.value ? " active" : ""
+                    }`}
+                    onClick={() => set("goalType", g.value)}
+                    aria-pressed={form.goalType === g.value}
+                  >
+                    <span className="onb-goal-label">{g.label}</span>
+                    <span className="onb-goal-desc">{g.desc}</span>
+                  </button>
+                ))}
+              </div>
+              <p className="onb-note">
+                El objetivo define tus calorías y macros. El peso objetivo es
+                la meta del gráfico: cuando llegues, se puede cambiar el
+                objetivo.
+              </p>
+
+              <div className="onb-label">Peso objetivo</div>
               <div className="onb-grid">
                 <Field
-                  label="Peso objetivo"
+                  label="Meta de peso"
                   suffix="kg"
                   value={form.goal}
                   onChange={(v) => set("goal", v)}
@@ -277,6 +313,12 @@ export default function Onboarding({
                   )}
                 </div>
               </div>
+              {goalMismatch && (
+                <p className="onb-hint onb-warn">
+                  La meta de peso no acompaña el objetivo elegido. Igual
+                  calculamos según el objetivo.
+                </p>
+              )}
 
               <div className="onb-label">Actividad semanal</div>
               <div className="onb-acts">
@@ -297,7 +339,10 @@ export default function Onboarding({
               </div>
 
               <div className="onb-preview">
-                <div className="onb-preview-head">Tus objetivos diarios</div>
+                <div className="onb-preview-head">
+                  Tus objetivos diarios
+                  {goalSpec ? ` · ${goalLabel(form.goalType)}` : ""}
+                </div>
                 {targets ? (
                   <>
                     <div className="onb-preview-grid">
@@ -329,7 +374,7 @@ export default function Onboarding({
                   </>
                 ) : (
                   <div className="onb-hint">
-                    Completá los datos del paso anterior para ver el cálculo.
+                    Elegí tu objetivo y actividad para ver el cálculo.
                   </div>
                 )}
               </div>
@@ -368,18 +413,15 @@ export default function Onboarding({
                   <b>{form.weight || "—"} kg</b>
                 </div>
                 <div>
-                  <span>Objetivo</span>
+                  <span>Peso meta</span>
                   <b>{form.goal || "—"} kg</b>
                 </div>
                 <div>
-                  <span>Actividad</span>
-                  <b>
-                    {ACTIVITY_LEVELS.find((a) => a.value === form.activity)
-                      ?.label || "—"}
-                  </b>
+                  <span>Objetivo</span>
+                  <b>{goalLabel(form.goalType) || "—"}</b>
                 </div>
                 <div>
-                  <span>Objetivos</span>
+                  <span>Calorías</span>
                   <b>{targets ? `${targets.calories} kcal` : "—"}</b>
                 </div>
               </div>

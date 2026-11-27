@@ -124,6 +124,7 @@ update profiles set
   sex = 'male',
   age = 30,
   country = 'AR',
+  goal_type = 'fat_loss',
   activity = 'moderate',
   height_cm = 178,
   goal_weight_kg = 90,

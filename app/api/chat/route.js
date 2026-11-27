@@ -267,10 +267,18 @@ export async function POST(req) {
     typeof body?.country === "string" && body.country.trim()
       ? body.country.trim().slice(0, 60)
       : null;
+  const goal =
+    typeof body?.goal === "string" && body.goal.trim()
+      ? body.goal.trim().slice(0, 60)
+      : null;
   const parts = [SYSTEM];
   if (t && typeof t === "object")
     parts.push(
       `Objetivos diarios del usuario: ${t.calories} kcal, ${t.protein}g proteína, ${t.carbs}g carbos, ${t.fat}g grasas.`
+    );
+  if (goal)
+    parts.push(
+      `Objetivo actual del usuario: ${goal}. Tenelo en cuenta al estimar y al sugerir comidas.`
     );
   if (country)
     parts.push(

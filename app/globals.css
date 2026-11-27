@@ -1093,6 +1093,20 @@ body.chat-resizing { user-select: none; transition: none; }
 }
 .onb-act-label { font-size: 13px; font-weight: 600; }
 .onb-act-hint { font-size: 10px; color: var(--muted); }
+.onb-goals { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.onb-goal {
+  text-align: left; background: var(--bg); border: 1px solid var(--border);
+  color: var(--text); border-radius: 10px; padding: 10px 12px; cursor: pointer;
+  display: flex; flex-direction: column; gap: 3px;
+}
+.onb-goal:hover { border-color: var(--blue); }
+.onb-goal.active {
+  border-color: var(--blue); background: rgba(59, 130, 246, .16);
+}
+.onb-goal-label { font-size: 12.5px; font-weight: 600; }
+.onb-goal-desc { font-size: 10.5px; color: var(--muted); line-height: 1.35; }
+.onb-goal:last-child { grid-column: 1 / -1; }
+.onb-warn { color: var(--yellow); margin-top: 8px; }
 .onb-preview {
   margin-top: 16px; border: 1px solid var(--border); border-radius: 12px;
   padding: 14px;
@@ -1544,6 +1558,14 @@ body.chat-resizing { user-select: none; transition: none; }
   display: flex; align-items: center; gap: 6px; white-space: nowrap;
 }
 .admin-table-empty { text-align: center; color: var(--muted); padding: 22px 12px; }
+
+/* Tab Sugerencias: el mensaje es libre y puede ser largo. */
+.admin-sug-table { min-width: 780px; }
+.admin-sug-table .admin-user-email { white-space: nowrap; }
+.admin-sug-message {
+  min-width: 320px; max-width: 620px;
+  line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere;
+}
 .admin-role, .admin-status {
   display: inline-block; padding: 2px 8px; border-radius: 999px;
   border: 1px solid var(--border); color: var(--muted);
@@ -1561,6 +1583,8 @@ body.chat-resizing { user-select: none; transition: none; }
 .admin-status.active { color: var(--green); border-color: rgba(34, 197, 94, .45); }
 .admin-status.trial { color: var(--yellow); border-color: rgba(234, 179, 8, .45); }
 .admin-status.canceled { color: var(--red); border-color: rgba(239, 68, 68, .45); }
+.admin-status.new { color: var(--yellow); border-color: rgba(234, 179, 8, .45); }
+.admin-status.read { color: var(--green); border-color: rgba(34, 197, 94, .45); }
 .admin-mini-btn {
   font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
   padding: 5px 10px; border-radius: 7px;
