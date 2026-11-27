@@ -1106,6 +1106,13 @@ body.chat-resizing { user-select: none; transition: none; }
 .onb-field select:focus { outline: none; border-color: var(--blue); }
 .onb-field select option { background: var(--card); color: var(--text); }
 .onb-country { margin-top: 14px; }
+.onb-name { margin-bottom: 14px; }
+.onb-name input {
+  width: 100%; background: var(--bg); border: 1px solid var(--border);
+  color: var(--text); border-radius: 9px; padding: 10px 12px;
+  font-size: 14px; font-family: inherit;
+}
+.onb-name input:focus { outline: none; border-color: var(--blue); }
 .onb-other { margin-top: 12px; }
 .onb-other input {
   width: 100%; background: var(--bg); border: 1px solid var(--border);

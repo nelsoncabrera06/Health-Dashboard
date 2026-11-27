@@ -33,6 +33,7 @@ export default function AuthModal({ open, onClose, initialMode = "login" }) {
   const router = useRouter();
   const [mode, setMode] = useState("login");
   const [username, setUsername] = useState("");
+  const [displayName, setDisplayName] = useState("");
   const [identifier, setIdentifier] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -50,6 +51,7 @@ export default function AuthModal({ open, onClose, initialMode = "login" }) {
 
   const reset = () => {
     setUsername("");
+    setDisplayName("");
     setIdentifier("");
     setEmail("");
     setPassword("");
@@ -96,7 +98,7 @@ export default function AuthModal({ open, onClose, initialMode = "login" }) {
     setBusy(true);
     try {
       if (mode === "register") {
-        await signIn({ username, email, password }, "register");
+        await signIn({ username, displayName, email, password }, "register");
       } else {
         await signIn({ identifier, password }, "login");
       }
@@ -163,6 +165,17 @@ export default function AuthModal({ open, onClose, initialMode = "login" }) {
                 onChange={(e) => setUsername(e.target.value)}
                 autoComplete="username"
                 autoFocus
+              />
+            </label>
+          )}
+          {mode === "register" && (
+            <label className="auth-field">
+              <span>Nombre (opcional)</span>
+              <input
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                autoComplete="name"
+                placeholder="Cómo querés que te llamen"
               />
             </label>
           )}

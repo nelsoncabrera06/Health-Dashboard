@@ -163,7 +163,7 @@ export default function Onboarding({
     setSaving(true);
     setError("");
     try {
-      await saveOnboarding(user.id, parsed);
+      await saveOnboarding(user.id, parsed, user.username);
       await onSaved?.();
       onClose?.();
     } catch (e) {
@@ -227,6 +227,18 @@ export default function Onboarding({
         <div className="onb-body">
           {step === 0 && (
             <>
+              <label className="onb-field onb-name">
+                <span>Nombre visible</span>
+                <input
+                  value={form.displayName}
+                  onChange={(e) => set("displayName", e.target.value)}
+                  placeholder="Cómo querés que te llamen"
+                  maxLength={80}
+                  autoComplete="name"
+                />
+                <span className="onb-hint">Se muestra en el dashboard.</span>
+              </label>
+
               <div className="onb-label">Sexo</div>
               <div className="onb-choice">
                 {SEXES.map((s) => (
